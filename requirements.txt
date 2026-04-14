@@ -1,0 +1,7 @@
+# No third-party Python packages required.
+#
+# This script shells out to the Claude Code CLI, which must be installed
+# separately and authenticated with your Pro subscription:
+#   1. Install Claude Code: https://docs.claude.com/claude-code
+#   2. Run: claude auth
+# Python 3.11+ is required (for zoneinfo).

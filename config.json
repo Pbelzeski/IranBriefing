@@ -1,0 +1,19 @@
+{
+  "model": "opus",
+  "effort": "max",
+  "output_dir": "./briefings",
+
+  "email_enabled": false,
+  "smtp_server": "smtp.gmail.com",
+  "smtp_port": 587,
+  "smtp_user": "your.email@gmail.com",
+  "smtp_password": "your_app_password",
+  "email_to": "your.email@gmail.com",
+
+  "premarket_hour": 9,
+  "premarket_minute": 0,
+  "midday_hour": 12,
+  "midday_minute": 30,
+
+  "agreement_date": ""
+}
