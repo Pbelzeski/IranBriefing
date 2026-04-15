@@ -2,64 +2,63 @@
 
 Generates twice-daily geopolitical and market analysis briefings on the 2026 Iran War peace talks and their NYSE sector implications.
 
-The system calls the Anthropic API with web search enabled, applies a structured analytical framework (5 hypotheses, motive analysis for both sides, 10 NYSE sectors), and produces timestamped HTML briefings. Optionally emails them to you.
+The system shells out to the [Claude Code](https://docs.claude.com/claude-code) CLI in headless mode (running Opus at max effort with web search), applies a structured analytical framework, and produces timestamped HTML briefings. A persistent state file carries hypotheses forward across runs so probabilities drift continuously instead of resetting each briefing. Runs are billed against your Claude subscription, not the Anthropic API.
 
 ## What You Get
 
 Each briefing includes:
-- **Situation Update** — what happened since the last briefing
-- **Hypothesis Probabilities** — updated weightings for 5 peace-talk outcome scenarios
-- **NYSE Sector Calls** — directional predictions for Energy, Defense, Airlines, Tech, Consumer Discretionary, Financials, Gold, Industrials, Utilities, Real Estate
+- **Situation Update** — what happened since the last briefing, and whether the previous "Key Watch" item resolved
+- **Hypothesis Probabilities** — updated weightings for the active peace-talk outcome scenarios (hypotheses can be retired, merged, or newly introduced as the situation evolves)
+- **NYSE Sector Calls** — directional predictions for Energy (XLE), Defense (ITA), Airlines (JETS), Tech (QQQ), Consumer Discretionary (XLY), Financials (XLF), Gold (GLD/GDX), Industrials (XLI), Utilities (XLU), Real Estate (XLRE)
 - **Key Watch** — the single most important thing to monitor before the next briefing
 - **Risk Alert** — tail risks that could invalidate the current framework
 
-Briefings auto-stop 7 days after a peace agreement is reached.
+Briefings auto-stop 7 days after a peace agreement is recorded.
 
 ---
 
-## Quick Start (5 minutes)
+## Quick Start
 
 ### 1. Prerequisites
 
-- **Python 3.11+** (check with `python3 --version`)
-- **An Anthropic API key** — get one at https://console.anthropic.com
+- **Python 3.11+** (required for `zoneinfo`) — check with `python3 --version`
+- **Claude Code CLI**, installed and authenticated with an active Claude Pro or Max subscription:
+  1. Install: https://docs.claude.com/claude-code
+  2. Run `claude auth` to log in
+  3. Verify with `claude --version`
 
-### 2. Install
+No third-party Python packages are needed — the script uses only the standard library. `requirements.txt` is included but empty.
 
-```bash
-# Clone or download the files to a folder
-cd iran_briefing
+### 2. Configure
 
-# Install the dependency
-pip install -r requirements.txt
-```
-
-### 3. Configure
-
-Edit `config.json` and replace `YOUR_API_KEY_HERE` with your Anthropic API key:
+Edit [config.json](config.json) if you want to override defaults:
 
 ```json
 {
-  "anthropic_api_key": "sk-ant-your-key-here",
-  "model": "claude-sonnet-4-20250514",
-  "output_dir": "./briefings"
+  "model": "opus",
+  "effort": "max",
+  "output_dir": "./briefings",
+  "premarket_hour": 9,
+  "premarket_minute": 0,
+  "midday_hour": 12,
+  "midday_minute": 30,
+  "agreement_date": ""
 }
 ```
 
-Alternatively, set an environment variable:
-```bash
-export ANTHROPIC_API_KEY="sk-ant-your-key-here"
-```
+All fields can also be overridden via environment variables (see [Configuration Reference](#configuration-reference)).
 
-### 4. Run a Test Briefing
+### 3. Run a Test Briefing
 
 ```bash
 python iran_briefing.py
 ```
 
-This generates a single pre-market briefing and saves it to `./briefings/`. Open the HTML file in your browser to review.
+This generates a single pre-market briefing and saves it to `./briefings/` as both an HTML file (for reading) and a `.txt` file (full raw output including the `<state_update>` JSON block, for audit). Open the HTML file in your browser to review.
 
-### 5. Start the Automated Scheduler
+At max effort with web search, a single briefing can take several minutes.
+
+### 4. Start the Automated Scheduler
 
 ```bash
 python iran_briefing.py --schedule
@@ -69,13 +68,30 @@ This runs continuously, generating briefings at:
 - **9:00 AM ET** — Pre-market briefing (30 min before NYSE open)
 - **12:30 PM ET** — Midday briefing (halfway through trading)
 
-It skips weekends automatically. Press `Ctrl+C` to stop.
+Weekends are skipped automatically. Press `Ctrl+C` to stop.
+
+---
+
+## How Persistent State Works
+
+After each briefing, the script parses a `<state_update>` JSON block out of Claude's output and writes it to [state.json](state.json) in the project root. The next run injects that state into the prompt so Claude sees:
+
+- The previous situation snapshot
+- All currently active hypotheses with their last probabilities and rationales
+- Retired hypotheses (so they aren't accidentally re-introduced)
+- The previous "Key Watch" and "Risk Alert" items
+
+This means hypotheses drift over time rather than resetting to baseline each run. To start fresh from the baseline hypotheses, delete the state file:
+
+```bash
+python iran_briefing.py --reset-state
+```
 
 ---
 
 ## Email Delivery (Optional)
 
-To receive briefings in your inbox, update `config.json`:
+To receive briefings in your inbox, update [config.json](config.json):
 
 ```json
 {
@@ -154,11 +170,6 @@ Create `~/Library/LaunchAgents/com.iran.briefing.plist`:
     <string>/path/to/iran_briefing/briefing_log.txt</string>
     <key>StandardErrorPath</key>
     <string>/path/to/iran_briefing/briefing_error.txt</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>ANTHROPIC_API_KEY</key>
-        <string>sk-ant-your-key-here</string>
-    </dict>
 </dict>
 </plist>
 ```
@@ -168,15 +179,15 @@ Then:
 launchctl load ~/Library/LaunchAgents/com.iran.briefing.plist
 ```
 
-### Linux — Cron (Alternative to Built-in Scheduler)
+The Launch Agent inherits your authenticated `claude` CLI credentials, so no API key environment variable is needed.
 
-If you prefer cron over the built-in scheduler:
+### Linux — Cron (Alternative to Built-in Scheduler)
 
 ```bash
 crontab -e
 ```
 
-Add these lines:
+Add:
 ```
 0 9 * * 1-5 cd /path/to/iran_briefing && python3 iran_briefing.py >> cron_log.txt 2>&1
 30 12 * * 1-5 cd /path/to/iran_briefing && python3 iran_briefing.py --midday >> cron_log.txt 2>&1
@@ -191,43 +202,23 @@ Add these lines:
    - Program: `python`
    - Arguments: `C:\path\to\iran_briefing.py`
    - Start in: `C:\path\to\iran_briefing\`
-5. Repeat for 12:30 PM with `--midday` flag
+5. Repeat for 12:30 PM with the `--midday` flag
 
-### Cloud Server (Cheapest Hands-Free Option)
-
-A $5/month VPS (DigitalOcean, Linode, Vultr) can run this 24/7:
-
-```bash
-# SSH into your server
-ssh user@your-server
-
-# Install Python and clone your files
-sudo apt update && sudo apt install python3 python3-pip -y
-pip3 install -r requirements.txt
-
-# Set API key
-export ANTHROPIC_API_KEY="sk-ant-your-key"
-
-# Run with nohup
-nohup python3 iran_briefing.py --schedule > log.txt 2>&1 &
-```
+Make sure the task runs under a user account that has already run `claude auth`.
 
 ---
 
 ## When a Peace Agreement Is Reached
 
-When a deal is reached, record the date:
+Record the date:
 
 ```bash
 python iran_briefing.py --set-agreement 2026-04-18
 ```
 
-The system will continue generating briefings for 7 more days (tracking implementation, market positioning, sector rotation) and then auto-stop.
+The system continues generating briefings for 7 more days (tracking implementation, market positioning, sector rotation) and then auto-stops.
 
-To restart after it stops, clear the agreement date:
-```bash
-python iran_briefing.py --set-agreement ""
-```
+To restart after it stops, clear the agreement date by editing `agreement_date` back to `""` in [config.json](config.json).
 
 ---
 
@@ -237,21 +228,22 @@ python iran_briefing.py --set-agreement ""
 |---------|-------------|
 | `python iran_briefing.py` | Run one pre-market briefing now |
 | `python iran_briefing.py --midday` | Run one midday briefing now |
-| `python iran_briefing.py --schedule` | Start automated scheduler |
+| `python iran_briefing.py --schedule` | Start the automated scheduler |
 | `python iran_briefing.py --test-email` | Verify email configuration |
 | `python iran_briefing.py --set-agreement 2026-04-18` | Set agreement date for auto-stop |
+| `python iran_briefing.py --reset-state` | Delete `state.json` and restart from baseline hypotheses |
 
 ---
 
 ## Configuration Reference
 
-All settings can be set in `config.json` or via environment variables:
+All settings can be set in [config.json](config.json) or via environment variables:
 
 | Config Key | Env Variable | Default | Description |
 |-----------|-------------|---------|-------------|
-| `anthropic_api_key` | `ANTHROPIC_API_KEY` | (required) | Your API key |
-| `model` | `BRIEFING_MODEL` | `claude-sonnet-4-20250514` | Model to use |
-| `output_dir` | `BRIEFING_OUTPUT_DIR` | `./briefings` | Where to save HTML files |
+| `model` | `BRIEFING_MODEL` | `opus` | Model passed to `claude --model` |
+| `effort` | `BRIEFING_EFFORT` | `max` | Effort level passed to `claude --effort` |
+| `output_dir` | `BRIEFING_OUTPUT_DIR` | `./briefings` | Where to save HTML + raw text files |
 | `email_enabled` | `EMAIL_ENABLED` | `false` | Send briefings via email |
 | `smtp_server` | `SMTP_SERVER` | `smtp.gmail.com` | SMTP server |
 | `smtp_port` | `SMTP_PORT` | `587` | SMTP port |
@@ -262,13 +254,21 @@ All settings can be set in `config.json` or via environment variables:
 | `premarket_minute` | `PREMARKET_MINUTE` | `0` | Pre-market briefing minute |
 | `midday_hour` | `MIDDAY_HOUR` | `12` | Midday briefing hour (ET) |
 | `midday_minute` | `MIDDAY_MINUTE` | `30` | Midday briefing minute |
-| `agreement_date` | `AGREEMENT_DATE` | | YYYY-MM-DD, triggers auto-stop after 7 days |
+| `agreement_date` | `AGREEMENT_DATE` | | YYYY-MM-DD, triggers auto-stop 7 days later |
 
 ---
 
-## Cost Estimate
+## Files Produced
 
-Each briefing uses approximately 10,000-20,000 tokens (input + output), plus web search calls. At current Sonnet pricing, expect roughly $0.10-0.30 per briefing, or about $0.40-1.00 per trading day. Monthly cost for a full month of trading days: approximately $8-20.
+- `briefings/briefing_YYYYMMDD_HHMM_<session>.html` — styled HTML briefing for reading
+- `briefings/briefing_YYYYMMDD_HHMM_<session>.txt` — full raw output including the `<state_update>` JSON block
+- `state.json` — persistent hypothesis state carried between runs (safe to delete via `--reset-state`)
+
+---
+
+## Cost
+
+Because the script invokes the Claude Code CLI, briefings run against your Claude Pro or Max subscription rather than per-token API billing. There is no marginal cost per briefing beyond your existing subscription, subject to whatever usage limits apply to your plan. Each briefing can consume significant tool-use time at max effort with web search.
 
 ---
 

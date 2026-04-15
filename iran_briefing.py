@@ -222,7 +222,8 @@ Any tail risks or surprises that could invalidate the current framework.
     }
   ],
   "previous_key_watch_for_next_run": "Copy the text of your <key_watch> section here verbatim.",
-  "previous_risk_alert_for_next_run": "Copy the text of your <risk_alert> section here verbatim."
+  "previous_risk_alert_for_next_run": "Copy the text of your <risk_alert> section here verbatim.",
+  "ceasefire_expiry": "YYYY-MM-DD expiry date of the currently active ceasefire, or empty string if none/unknown. Update this whenever news indicates the ceasefire was extended, renegotiated, replaced, broken, or a new one was announced. If unchanged from the previous run, repeat the same date — do not omit the field."
 }
 </state_update>
 
@@ -235,6 +236,9 @@ CRITICAL RULES FOR <state_update>:
 - Probabilities are integers 0-100. Trend is "up", "down", or "flat".
 - Keep "one_line_rationale" under 25 words — this is the condensed memory that
   gets carried forward.
+- "ceasefire_expiry" must always be present. Repeat the prior date if nothing
+  changed, update it if news shows the ceasefire was extended/renegotiated/broken,
+  or set it to "" if there is no longer a dated ceasefire in effect.
 
 IMPORTANT: Be specific and actionable. Use concrete numbers, name specific tickers,
 give clear directional calls. Hedge where genuinely uncertain, but don't be vague
@@ -249,7 +253,7 @@ USER_PROMPT_TEMPLATE = """Generate the {session_type} briefing for {date_str}.
 
 Today's date is {date_str}. The current time is {time_str} ET.
 The NYSE {market_status}.
-The ceasefire is set to expire on April 21, 2026 — that's {days_until_expiry} days from now.
+{ceasefire_line}
 
 {previous_state_block}
 
@@ -281,6 +285,7 @@ def load_state() -> dict:
             "situation_snapshot": "",
             "previous_key_watch": "",
             "previous_risk_alert": "",
+            "ceasefire_expiry": "2026-04-21",
             "last_updated": "",
             "last_briefing_file": "",
         }
@@ -375,6 +380,13 @@ def merge_state(old_state: dict, new_update: dict, briefing_file: str) -> dict:
             "retired_on_date": now.strftime("%Y-%m-%d"),
         })
 
+    # Carry ceasefire_expiry forward unless the model explicitly updated it.
+    # Presence of the key in new_update (even if "") counts as an explicit update.
+    if "ceasefire_expiry" in new_update:
+        ceasefire_expiry = new_update["ceasefire_expiry"]
+    else:
+        ceasefire_expiry = old_state.get("ceasefire_expiry", "")
+
     return {
         "version": STATE_VERSION,
         "briefings_count": old_state.get("briefings_count", 0) + 1,
@@ -385,6 +397,7 @@ def merge_state(old_state: dict, new_update: dict, briefing_file: str) -> dict:
         "retired_hypotheses": retired,
         "previous_key_watch": new_update.get("previous_key_watch_for_next_run", ""),
         "previous_risk_alert": new_update.get("previous_risk_alert_for_next_run", ""),
+        "ceasefire_expiry": ceasefire_expiry,
     }
 
 
@@ -397,9 +410,34 @@ def generate_briefing(config: dict, session_type: str, state: dict) -> str:
     date_str = now.strftime("%A, %B %d, %Y")
     time_str = now.strftime("%I:%M %p")
 
-    ceasefire_expiry = datetime(2026, 4, 21, tzinfo=et)
-    days_until = (ceasefire_expiry - now).days
-    days_str = f"{abs(days_until)} days ago (EXPIRED)" if days_until < 0 else str(days_until)
+    expiry_str = (state.get("ceasefire_expiry") or "").strip()
+    if expiry_str:
+        try:
+            ceasefire_expiry = datetime.strptime(expiry_str, "%Y-%m-%d").replace(tzinfo=et)
+            days_until = (ceasefire_expiry - now).days
+            if days_until < 0:
+                ceasefire_line = (
+                    f"As of the last briefing, the ceasefire was set to expire on {expiry_str} "
+                    f"— that was {abs(days_until)} days ago. Verify via web search whether it was "
+                    f"extended, replaced, or has lapsed, and update ceasefire_expiry accordingly."
+                )
+            else:
+                ceasefire_line = (
+                    f"As of the last briefing, the ceasefire is set to expire on {expiry_str} "
+                    f"— that's {days_until} days from now. If news indicates this has been "
+                    f"extended, renegotiated, or broken, update ceasefire_expiry in <state_update>."
+                )
+        except ValueError:
+            ceasefire_line = (
+                f"Current ceasefire expiry field is malformed ({expiry_str!r}). "
+                f"Set a valid YYYY-MM-DD value in ceasefire_expiry or empty string if unknown."
+            )
+    else:
+        ceasefire_line = (
+            "Ceasefire expiry is currently unknown or no active ceasefire is in effect. "
+            "Determine current status via web search and set ceasefire_expiry in <state_update> "
+            "if a dated ceasefire exists."
+        )
 
     hour = now.hour
     if session_type == "pre-market":
@@ -414,7 +452,7 @@ def generate_briefing(config: dict, session_type: str, state: dict) -> str:
         date_str=date_str,
         time_str=time_str,
         market_status=market_status,
-        days_until_expiry=days_str,
+        ceasefire_line=ceasefire_line,
         previous_state_block=format_state_for_prompt(state),
     )
 
@@ -581,7 +619,7 @@ def format_html_briefing(raw_text: str, session_type: str, timestamp: str) -> st
 <body>
 <div class="masthead">
     <h1>Iran Peace Talks — {session_label}</h1>
-    <div class="meta">{timestamp} ET · Automated Geopolitical & Market Analysis · Ceasefire expires April 21</div>
+    <div class="meta">{timestamp} ET · Automated Geopolitical & Market Analysis</div>
 </div>
 
 {content}
