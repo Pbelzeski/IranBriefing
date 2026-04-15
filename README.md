@@ -9,7 +9,7 @@ The system shells out to the [Claude Code](https://docs.claude.com/claude-code) 
 Each briefing includes:
 - **Situation Update** — what happened since the last briefing, and whether the previous "Key Watch" item resolved
 - **Hypothesis Probabilities** — updated weightings for the active peace-talk outcome scenarios (hypotheses can be retired, merged, or newly introduced as the situation evolves)
-- **NYSE Sector Calls** — directional predictions for Energy (XLE), Defense (ITA), Airlines (JETS), Tech (QQQ), Consumer Discretionary (XLY), Financials (XLF), Gold (GLD/GDX), Industrials (XLI), Utilities (XLU), Real Estate (XLRE)
+- **NYSE Sector Calls** — directional predictions for Energy (XLE), Defense (ITA), Airlines (JETS), Tech (QQQ), Consumer Discretionary (XLY), Financials (XLF), Gold (GLD/GDX), Industrials (XLI), Utilities (XLU), Real Estate (XLRE), Volatility (VIX / VXX / UVXY)
 - **Key Watch** — the single most important thing to monitor before the next briefing
 - **Risk Alert** — tail risks that could invalidate the current framework
 
@@ -54,7 +54,7 @@ All fields can also be overridden via environment variables (see [Configuration 
 python iran_briefing.py
 ```
 
-This generates a single pre-market briefing and saves it to `./briefings/` as both an HTML file (for reading) and a `.txt` file (full raw output including the `<state_update>` JSON block, for audit). Open the HTML file in your browser to review.
+This generates a single on-demand briefing and saves it to `./briefings/` as both an HTML file (for reading) and a `.txt` file (full raw output including the `<state_update>` JSON block, for audit). Open the HTML file in your browser to review.
 
 At max effort with web search, a single briefing can take several minutes.
 
@@ -67,7 +67,7 @@ python iran_briefing.py --schedule
 This runs continuously, generating one briefing per trading day:
 - **12:30 PM ET** — Midday briefing (halfway through trading)
 
-Weekends are skipped automatically. Press `Ctrl+C` to stop. To run an ad-hoc pre-market briefing on top of the scheduled midday one, invoke `python iran_briefing.py` manually without `--schedule`.
+Weekends are skipped automatically. Press `Ctrl+C` to stop. To run an ad-hoc on-demand briefing on top of the scheduled midday one, invoke `python iran_briefing.py` manually without `--schedule`.
 
 ---
 
@@ -223,7 +223,8 @@ To restart after it stops, clear the agreement date by editing `agreement_date` 
 
 | Command | What it does |
 |---------|-------------|
-| `python iran_briefing.py` | Run one pre-market briefing now |
+| `python iran_briefing.py` | Run one on-demand briefing now (labeled On-Demand) |
+| `python iran_briefing.py --premarket` | Run one pre-market briefing now |
 | `python iran_briefing.py --midday` | Run one midday briefing now |
 | `python iran_briefing.py --schedule` | Start the automated scheduler |
 | `python iran_briefing.py --test-email` | Verify email configuration |

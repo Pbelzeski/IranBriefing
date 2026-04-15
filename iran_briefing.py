@@ -19,6 +19,7 @@ Usage:
 """
 
 import argparse
+import html as html_module
 import json
 import os
 import re
@@ -33,7 +34,74 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 STATE_FILE = Path(__file__).parent / "state.json"
-STATE_VERSION = 1
+STATE_VERSION = 2
+
+
+BASELINE_MOTIVES_US = [
+    {
+        "rank": 1,
+        "title": "Strategic opportunism",
+        "rationale": "Exploits Iran's post-2024 weakness — depleted proxies, economic strain, loss of Assad — to extract concessions that were not on the table before. Administration behavior tracks a 'press while weak' logic more than any fixed doctrine.",
+        "trend": "flat",
+    },
+    {
+        "rank": 2,
+        "title": "Israeli alignment / Netanyahu partnership",
+        "rationale": "Close operational coordination with the Netanyahu government. US posture on Lebanon, nuclear red lines, and timing of escalation has tracked Israeli security objectives more than its own stated policy.",
+        "trend": "flat",
+    },
+    {
+        "rank": 3,
+        "title": "Legacy and strongman self-image",
+        "rationale": "Seeks a historic, personally brandable deal. Willing to threaten maximalist outcomes and walk-away scenarios to produce a 'Nobel-worthy' win he can campaign on.",
+        "trend": "flat",
+    },
+    {
+        "rank": 4,
+        "title": "Nuclear nonproliferation",
+        "rationale": "A real but subordinate motive. Preventing weaponization remains a stated red line, yet the administration has shown willingness to trade duration and verification for face-saving deal structure.",
+        "trend": "flat",
+    },
+    {
+        "rank": 5,
+        "title": "Energy and oil leverage",
+        "rationale": "Conflict-driven oil-price swings are used for domestic political positioning. Gas prices shape the midterm narrative, giving the White House incentive to manage — not eliminate — the premium.",
+        "trend": "flat",
+    },
+]
+
+BASELINE_MOTIVES_IRAN = [
+    {
+        "rank": 1,
+        "title": "Regime survival",
+        "rationale": "The existential imperative of the Islamic Republic. Every other motive is instrumental to keeping the clerical system intact, and any deal that credibly threatens the regime is a non-starter regardless of economic cost.",
+        "trend": "flat",
+    },
+    {
+        "rank": 2,
+        "title": "Economic leverage via Hormuz",
+        "rationale": "Restricting Strait of Hormuz traffic is Iran's highest-value coercive tool given its effect on global oil and European allies. Tehran trades access for sanctions relief rather than giving it up wholesale.",
+        "trend": "flat",
+    },
+    {
+        "rank": 3,
+        "title": "Deterrence restoration",
+        "rationale": "After setbacks to proxies and conventional losses, Iran needs to re-establish that attacks on its interests carry real cost — otherwise further coercion by the US and Israel becomes cheap.",
+        "trend": "flat",
+    },
+    {
+        "rank": 4,
+        "title": "Rally-the-flag nationalism",
+        "rationale": "External pressure unifies the domestic population against dissent and is a useful counter to protest movements and economic grievances that have destabilized the regime in recent years.",
+        "trend": "flat",
+    },
+    {
+        "rank": 5,
+        "title": "Preserving the Axis of Resistance",
+        "rationale": "Hezbollah, the Houthis, Iraqi militias, and remnants of the Assad network are strategic depth worth protecting even at high cost — they are Iran's forward defensive perimeter.",
+        "trend": "flat",
+    },
+]
 
 
 # ─── Configuration ──────────────────────────────────────────────────────────
@@ -69,7 +137,7 @@ def load_config():
 
 # ─── The Analysis Framework (embedded system prompt) ────────────────────────
 
-SYSTEM_PROMPT = """You are a geopolitical and financial analyst producing a twice-daily briefing
+SYSTEM_PROMPT = """You are a geopolitical and financial analyst producing a daily briefing
 on the 2026 Iran War peace talks and their NYSE market implications.
 
 ## YOUR ANALYTICAL FRAMEWORK
@@ -157,88 +225,144 @@ Historic comprehensive agreement on nuclear, Strait, sanctions, reconstruction.
 
 ## OUTPUT FORMAT
 
-Structure your briefing exactly as follows. The <briefing> block is for human
-readers and will be rendered as HTML. The <state_update> block at the END is
-for the automation system to parse — it MUST be valid JSON inside the tags.
+Structure your briefing exactly as follows. The narrative <briefing> block is
+for the human reader. The <state_update> block at the END is for the automation
+system and is the AUTHORITATIVE data for the tabbed HTML renderer and for the
+state carried into the next briefing — it MUST be valid JSON.
 
 <briefing>
 <header>
-Briefing type (Pre-Market or Midday), timestamp, session identifier
+Briefing type (Pre-Market or Midday), timestamp, session identifier, and a one-
+line market snapshot (S&P futures, Brent, Gold, VIX).
 </header>
 
 <situation_update>
-What happened since the last briefing? Key developments in 2-3 paragraphs.
-Explicitly address whether the previous "Key Watch" item resolved.
+2-3 paragraphs synthesizing what happened since the last briefing. Explicitly
+address whether the previous "Key Watch" item resolved and how the previous
+"Risk Alert" tail risks have evolved.
 </situation_update>
 
-<hypothesis_update>
-For each ACTIVE hypothesis: ID, title, current probability, direction of change
-from the previous briefing (↑↓→), and 1-2 sentence justification.
-If you RETIRED or INTRODUCED hypotheses this briefing, call it out clearly
-here with the reason.
-</hypothesis_update>
+<recent_headlines>
+5-10 of the most significant headlines from the past ~12 hours (or since the
+previous briefing, whichever is longer). One bullet per headline in the form:
+"Source — one-sentence summary — https://url". The authoritative structured
+list goes in <state_update>.recent_headlines.
+</recent_headlines>
 
-<sector_calls>
-For each major sector: current call (bullish/bearish/neutral), conviction level,
-specific tickers to watch.
-Sectors: Energy (XLE), Defense (ITA), Airlines (JETS), Tech (QQQ), Consumer Discretionary (XLY),
-Financials (XLF), Gold (GLD/GDX), Industrials (XLI), Utilities (XLU), Real Estate (XLRE)
-</sector_calls>
+<motives_us>
+1-2 short paragraphs on whether US / Trump-administration motives have shifted
+since the last briefing, and why. The authoritative ranked list of five motives
+goes in <state_update>.motives_us.
+</motives_us>
+
+<motives_iran>
+1-2 short paragraphs on whether Iranian motives have shifted since the last
+briefing, and why. The authoritative ranked list of five motives goes in
+<state_update>.motives_iran.
+</motives_iran>
+
+<hypothesis_update>
+1-2 paragraphs of narrative commentary on what moved this briefing: which
+hypotheses shifted, any retired or newly introduced, and why. The authoritative
+per-hypothesis data — probabilities, rationales, and per-sector market effects
+conditional on that outcome — goes in <state_update>.hypotheses.
+</hypothesis_update>
 
 <key_watch>
 The single most important thing to watch before the next briefing.
 </key_watch>
 
 <risk_alert>
-Any tail risks or surprises that could invalidate the current framework.
+Tail risks or surprises that could invalidate the current framework.
 </risk_alert>
 </briefing>
 
 <state_update>
 {
-  "situation_snapshot": "2-3 sentence neutral summary of where things currently stand. Will be injected into the NEXT briefing's prompt so future-you has context.",
+  "situation_snapshot": "2-3 sentence neutral summary of where things currently stand. Injected into the NEXT briefing's prompt so future-you has context.",
+  "ceasefire_expiry": "YYYY-MM-DD expiry of the currently active ceasefire, or empty string if none/unknown. Update whenever news shows it was extended, renegotiated, replaced, or broken. If unchanged from the previous run, repeat the same date — do not omit the field.",
+  "recent_headlines": [
+    {
+      "source": "CNN",
+      "summary": "One-sentence summary of the headline in your own words.",
+      "url": "https://www.cnn.com/..."
+    }
+  ],
+  "motives_us": [
+    {
+      "rank": 1,
+      "title": "Short motive name (e.g. 'Strategic opportunism').",
+      "rationale": "2-4 sentences grounded in recent observable behavior — back-test against concrete actions from the last week.",
+      "trend": "up | down | flat — direction of change since the previous briefing's ranking of this motive"
+    }
+  ],
+  "motives_iran": [
+    {
+      "rank": 1,
+      "title": "...",
+      "rationale": "...",
+      "trend": "up | down | flat"
+    }
+  ],
   "hypotheses": [
     {
       "id": "H1",
       "title": "The Can-Kick — Ceasefire Extension + Vague Framework",
       "probability": 38,
       "trend": "down",
-      "one_line_rationale": "Short reason for current probability, under 25 words, for future-you to read at next briefing.",
-      "sectors_brief": "Bullish tech/airlines, bearish energy"
+      "one_line_rationale": "Under 25 words — the condensed memory carried into the NEXT briefing.",
+      "display_rationale": "2-4 sentences explaining the current probability level for human readers of this briefing.",
+      "market_effects": [
+        {
+          "sector": "Energy (XLE)",
+          "direction": "bearish",
+          "conviction": "moderate",
+          "tickers": "XOM, CVX, COP, OXY",
+          "note": "One-line reasoning for this sector call CONDITIONAL on this specific hypothesis playing out."
+        }
+      ]
     }
   ],
   "newly_retired_hypotheses": [
     {
       "id": "H_OLD",
       "title": "...",
-      "reason": "Why this was retired in THIS briefing."
+      "reason": "Why retired in THIS briefing."
     }
   ],
   "newly_introduced_hypotheses": [
     {
       "id": "H6",
       "title": "...",
-      "reason": "Why this was introduced in THIS briefing."
+      "reason": "Why introduced in THIS briefing."
     }
   ],
   "previous_key_watch_for_next_run": "Copy the text of your <key_watch> section here verbatim.",
-  "previous_risk_alert_for_next_run": "Copy the text of your <risk_alert> section here verbatim.",
-  "ceasefire_expiry": "YYYY-MM-DD expiry date of the currently active ceasefire, or empty string if none/unknown. Update this whenever news indicates the ceasefire was extended, renegotiated, replaced, broken, or a new one was announced. If unchanged from the previous run, repeat the same date — do not omit the field."
+  "previous_risk_alert_for_next_run": "Copy the text of your <risk_alert> section here verbatim."
 }
 </state_update>
 
 CRITICAL RULES FOR <state_update>:
 - It MUST be valid JSON. No trailing commas, no comments, no markdown fences.
-- The "hypotheses" array must contain ALL currently ACTIVE hypotheses. Anything
-  not in this array is treated as removed.
+- All fields listed above must be present on every run. Missing fields break the
+  tabbed HTML renderer and lose memory for the next briefing.
+- "motives_us" and "motives_iran" must each contain EXACTLY 5 entries, ranked
+  1-5. You may re-order them between briefings; use "trend" to show shifts.
+- "hypotheses" contains ALL currently active scenarios. Anything not listed is
+  treated as removed. Each must include a "market_effects" array covering at
+  least Energy (XLE), Defense (ITA), Airlines (JETS), Tech (QQQ), Consumer
+  Discretionary (XLY), Financials (XLF), Gold (GLD/GDX), Industrials (XLI),
+  Utilities (XLU), Real Estate (XLRE), and Volatility (VIX / VXX / UVXY).
+- "direction" must be one of: "bullish", "bearish", "neutral".
+- "conviction" must be one of: "low", "moderate", "high".
 - "newly_retired_hypotheses" and "newly_introduced_hypotheses" contain only
-  changes made in THIS briefing. Leave them as empty arrays [] if nothing changed.
-- Probabilities are integers 0-100. Trend is "up", "down", or "flat".
-- Keep "one_line_rationale" under 25 words — this is the condensed memory that
-  gets carried forward.
-- "ceasefire_expiry" must always be present. Repeat the prior date if nothing
-  changed, update it if news shows the ceasefire was extended/renegotiated/broken,
-  or set it to "" if there is no longer a dated ceasefire in effect.
+  changes made in THIS briefing. Empty arrays [] if nothing changed.
+- Probabilities are integers 0-100 and should sum to ~100 across active
+  hypotheses. Trend is "up", "down", or "flat".
+- Keep "one_line_rationale" under 25 words.
+- "recent_headlines" should contain 5-10 entries with real URLs from the
+  current web search results.
+- "ceasefire_expiry" must always be present.
 
 IMPORTANT: Be specific and actionable. Use concrete numbers, name specific tickers,
 give clear directional calls. Hedge where genuinely uncertain, but don't be vague
@@ -274,23 +398,33 @@ implementation risks and post-agreement market positioning."""
 
 # ─── Persistent Hypothesis State ────────────────────────────────────────────
 
+def _fresh_state() -> dict:
+    return {
+        "version": STATE_VERSION,
+        "briefings_count": 0,
+        "hypotheses": [],
+        "retired_hypotheses": [],
+        "situation_snapshot": "",
+        "previous_key_watch": "",
+        "previous_risk_alert": "",
+        "ceasefire_expiry": "2026-04-21",
+        "motives_us": [dict(m) for m in BASELINE_MOTIVES_US],
+        "motives_iran": [dict(m) for m in BASELINE_MOTIVES_IRAN],
+        "last_updated": "",
+        "last_briefing_file": "",
+    }
+
+
 def load_state() -> dict:
-    """Load the persistent hypothesis state, or return a fresh empty state."""
+    """Load the persistent state, applying defaults for any missing keys."""
     if not STATE_FILE.exists():
-        return {
-            "version": STATE_VERSION,
-            "briefings_count": 0,
-            "hypotheses": [],
-            "retired_hypotheses": [],
-            "situation_snapshot": "",
-            "previous_key_watch": "",
-            "previous_risk_alert": "",
-            "ceasefire_expiry": "2026-04-21",
-            "last_updated": "",
-            "last_briefing_file": "",
-        }
+        return _fresh_state()
     with open(STATE_FILE, encoding="utf-8") as f:
-        return json.load(f)
+        state = json.load(f)
+    # Forward-migrate older state files by filling in any new keys with defaults
+    for key, value in _fresh_state().items():
+        state.setdefault(key, value)
+    return state
 
 
 def save_state(state: dict) -> None:
@@ -330,6 +464,24 @@ def format_state_for_prompt(state: dict) -> str:
         lines.append("### Retired hypotheses (do NOT re-introduce without strong new evidence):")
         for h in state["retired_hypotheses"]:
             lines.append(f"- **{h.get('id', '?')}** {h.get('title', '')} — retired: {h.get('reason', '')}")
+
+    if state.get("motives_us"):
+        lines.append("")
+        lines.append("### US / Trump administration motives at end of last briefing (ranked):")
+        for m in sorted(state["motives_us"], key=lambda x: x.get("rank", 99)):
+            trend_arrow = {"up": "↑", "down": "↓", "flat": "→"}.get(m.get("trend", "flat"), "→")
+            lines.append(
+                f"- **{m.get('rank', '?')}. {m.get('title', '')}** {trend_arrow} — {m.get('rationale', '')}"
+            )
+
+    if state.get("motives_iran"):
+        lines.append("")
+        lines.append("### Iranian motives at end of last briefing (ranked):")
+        for m in sorted(state["motives_iran"], key=lambda x: x.get("rank", 99)):
+            trend_arrow = {"up": "↑", "down": "↓", "flat": "→"}.get(m.get("trend", "flat"), "→")
+            lines.append(
+                f"- **{m.get('rank', '?')}. {m.get('title', '')}** {trend_arrow} — {m.get('rationale', '')}"
+            )
 
     if state.get("previous_key_watch"):
         lines.append("")
@@ -380,12 +532,12 @@ def merge_state(old_state: dict, new_update: dict, briefing_file: str) -> dict:
             "retired_on_date": now.strftime("%Y-%m-%d"),
         })
 
-    # Carry ceasefire_expiry forward unless the model explicitly updated it.
-    # Presence of the key in new_update (even if "") counts as an explicit update.
-    if "ceasefire_expiry" in new_update:
-        ceasefire_expiry = new_update["ceasefire_expiry"]
-    else:
-        ceasefire_expiry = old_state.get("ceasefire_expiry", "")
+    # Carry these fields forward unless the model explicitly updated them.
+    # Presence of the key in new_update (even if empty) counts as explicit.
+    def _carry(key: str, default):
+        if key in new_update:
+            return new_update[key]
+        return old_state.get(key, default)
 
     return {
         "version": STATE_VERSION,
@@ -397,7 +549,9 @@ def merge_state(old_state: dict, new_update: dict, briefing_file: str) -> dict:
         "retired_hypotheses": retired,
         "previous_key_watch": new_update.get("previous_key_watch_for_next_run", ""),
         "previous_risk_alert": new_update.get("previous_risk_alert_for_next_run", ""),
-        "ceasefire_expiry": ceasefire_expiry,
+        "ceasefire_expiry": _carry("ceasefire_expiry", ""),
+        "motives_us": _carry("motives_us", [dict(m) for m in BASELINE_MOTIVES_US]),
+        "motives_iran": _carry("motives_iran", [dict(m) for m in BASELINE_MOTIVES_IRAN]),
     }
 
 
@@ -472,8 +626,6 @@ def generate_briefing(config: dict, session_type: str, state: dict) -> str:
                 "--output-format", "text",
             ],
             capture_output=True,
-            text=True,
-            encoding="utf-8",
             timeout=1800,
         )
     except FileNotFoundError:
@@ -486,153 +638,492 @@ def generate_briefing(config: dict, session_type: str, state: dict) -> str:
         raise RuntimeError("Claude Code call timed out after 30 minutes.")
 
     if result.returncode != 0:
+        stderr = result.stderr.decode("utf-8", errors="replace") if result.stderr else ""
         raise RuntimeError(
             f"Claude Code returned exit code {result.returncode}.\n"
-            f"stderr: {result.stderr[:2000]}"
+            f"stderr: {stderr[:2000]}"
         )
 
-    return result.stdout.strip()
+    return _decode_claude_output(result.stdout).strip()
+
+
+def _decode_claude_output(raw_bytes: bytes) -> str:
+    """Decode Claude CLI stdout bytes, fixing Windows cp1252 mojibake if needed.
+
+    On some Windows installations the claude.cmd wrapper emits UTF-8 bytes that
+    get re-interpreted via the console code page somewhere in the pipeline,
+    producing double-encoded mojibake like 'â€"' for em-dash and 'ðŸ"´' for 🔴.
+    We decode as UTF-8 first; if the result contains telltale mojibake
+    signatures, we round-trip through cp1252 to recover the original characters.
+    """
+    text = raw_bytes.decode("utf-8", errors="replace")
+    mojibake_markers = ("ðŸ", "â€", "Â·", "Ã©", "Ã¨", "Ã¡")
+    if any(marker in text for marker in mojibake_markers):
+        try:
+            recovered = text.encode("cp1252", errors="strict").decode("utf-8", errors="strict")
+            text = recovered
+        except (UnicodeEncodeError, UnicodeDecodeError, LookupError):
+            pass
+    return text
 
 
 # ─── HTML Formatting ────────────────────────────────────────────────────────
 
-def format_html_briefing(raw_text: str, session_type: str, timestamp: str) -> str:
-    """Wrap the raw briefing text in a styled HTML document."""
-    content = raw_text
+TREND_ARROW = {"up": "↑", "down": "↓", "flat": "→"}
 
-    content = content.replace("&", "&amp;").replace("<briefing>", "").replace("</briefing>", "")
 
-    content = re.sub(r"^### (.+)$", r"<h3>\1</h3>", content, flags=re.MULTILINE)
-    content = re.sub(r"^## (.+)$", r"<h2>\1</h2>", content, flags=re.MULTILINE)
-    content = re.sub(r"^# (.+)$", r"<h1>\1</h1>", content, flags=re.MULTILINE)
+def _extract_section(raw_text: str, tag: str) -> str:
+    match = re.search(fr"<{tag}>(.*?)</{tag}>", raw_text, re.DOTALL)
+    return match.group(1).strip() if match else ""
 
-    content = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", content)
 
-    section_map = {
-        "header": ("📋", "Briefing Header"),
-        "situation_update": ("🌍", "Situation Update"),
-        "hypothesis_update": ("📊", "Hypothesis Probabilities"),
-        "sector_calls": ("📈", "NYSE Sector Calls"),
-        "key_watch": ("👁", "Key Watch"),
-        "risk_alert": ("⚠️", "Risk Alert"),
-    }
+def _narrative_to_html(text: str) -> str:
+    """Minimal markdown-ish conversion for narrative sections."""
+    if not text:
+        return ""
+    escaped = html_module.escape(text)
+    escaped = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", escaped)
+    escaped = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<em>\1</em>", escaped)
+    escaped = re.sub(
+        r"(https?://[^\s<>)\]]+)",
+        r'<a href="\1" target="_blank" rel="noopener">\1</a>',
+        escaped,
+    )
+    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", escaped) if p.strip()]
+    return "\n".join(f"<p>{p}</p>" for p in paragraphs)
 
-    for tag, (emoji, title) in section_map.items():
-        open_tag = f"&lt;{tag}&gt;"
-        close_tag = f"&lt;/{tag}&gt;"
-        content = content.replace(open_tag,
-            f'<div class="section"><div class="section-header">{emoji} {title}</div><div class="section-body">')
-        content = content.replace(close_tag, "</div></div>")
 
-    paragraphs = content.split("\n\n")
-    content = "\n".join(f"<p>{p.strip()}</p>" if not p.strip().startswith("<") else p for p in paragraphs if p.strip())
+def _render_headlines(state_update: dict | None, raw_text: str) -> str:
+    items = (state_update or {}).get("recent_headlines") or []
+    if items:
+        rendered = []
+        for h in items:
+            source = html_module.escape((h.get("source") or "").strip())
+            summary = html_module.escape((h.get("summary") or "").strip())
+            url = (h.get("url") or "").strip()
+            link = (
+                f' <a href="{html_module.escape(url)}" target="_blank" rel="noopener">[link]</a>'
+                if url else ""
+            )
+            rendered.append(f"<li><strong>{source}</strong> — {summary}{link}</li>")
+        return "<ul class='headlines'>" + "".join(rendered) + "</ul>"
+    narrative = _narrative_to_html(_extract_section(raw_text, "recent_headlines"))
+    return narrative or "<p><em>No recent-headlines data in this briefing.</em></p>"
 
-    session_label = "Pre-Market Briefing" if "pre" in session_type.lower() else "Midday Briefing"
 
-    html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Iran Peace Talks — {session_label} — {timestamp}</title>
-<style>
-    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-    body {{
+def _render_motives(motives: list, narrative_tag: str, raw_text: str) -> str:
+    parts = []
+    narrative = _narrative_to_html(_extract_section(raw_text, narrative_tag))
+    if narrative:
+        parts.append(f'<div class="motives-narrative">{narrative}</div>')
+    if motives:
+        parts.append("<ol class='motives'>")
+        for m in sorted(motives, key=lambda x: x.get("rank", 99)):
+            title = html_module.escape((m.get("title") or "").strip())
+            rationale = html_module.escape((m.get("rationale") or "").strip())
+            arrow = TREND_ARROW.get((m.get("trend") or "flat").lower(), "→")
+            parts.append(
+                f'<li><div class="motive-title">{title} '
+                f'<span class="trend">{arrow}</span></div>'
+                f'<div class="motive-rationale">{rationale}</div></li>'
+            )
+        parts.append("</ol>")
+    elif not narrative:
+        parts.append("<p><em>No motive data in this briefing.</em></p>")
+    return "\n".join(parts)
+
+
+def _render_outcomes(state_update: dict | None, raw_text: str) -> str:
+    parts = []
+    narrative = _narrative_to_html(_extract_section(raw_text, "hypothesis_update"))
+    if narrative:
+        parts.append(f'<div class="outcome-narrative">{narrative}</div>')
+
+    hypotheses = (state_update or {}).get("hypotheses") or []
+    if not hypotheses:
+        if not narrative:
+            parts.append("<p><em>No hypothesis data in this briefing.</em></p>")
+        return "\n".join(parts)
+
+    direction_class = {"bullish": "bullish", "bearish": "bearish", "neutral": "neutral"}
+    for h in hypotheses:
+        h_id = html_module.escape((h.get("id") or "?").strip())
+        title = html_module.escape((h.get("title") or "").strip())
+        prob = h.get("probability", "?")
+        arrow = TREND_ARROW.get((h.get("trend") or "flat").lower(), "→")
+        display_rationale = html_module.escape(
+            (h.get("display_rationale") or h.get("one_line_rationale") or "").strip()
+        )
+
+        effects_rows = []
+        for eff in h.get("market_effects") or []:
+            sector = html_module.escape((eff.get("sector") or "").strip())
+            direction_raw = (eff.get("direction") or "neutral").lower()
+            dir_class = direction_class.get(direction_raw, "neutral")
+            dir_label = html_module.escape(direction_raw.upper())
+            conviction = html_module.escape((eff.get("conviction") or "").strip())
+            tickers = html_module.escape((eff.get("tickers") or "").strip())
+            note = html_module.escape((eff.get("note") or "").strip())
+            effects_rows.append(
+                f"<tr>"
+                f"<td class='sector'>{sector}</td>"
+                f"<td class='direction {dir_class}'>{dir_label}</td>"
+                f"<td class='conviction'>{conviction}</td>"
+                f"<td class='tickers'>{tickers}</td>"
+                f"<td class='note'>{note}</td>"
+                f"</tr>"
+            )
+
+        if effects_rows:
+            effects_html = (
+                '<details class="market-effects">'
+                '<summary>Market Effects</summary>'
+                '<table class="effects-table">'
+                '<thead><tr><th>Sector</th><th>Direction</th>'
+                '<th>Conviction</th><th>Tickers</th><th>Note</th></tr></thead>'
+                f'<tbody>{"".join(effects_rows)}</tbody>'
+                '</table>'
+                '</details>'
+            )
+        else:
+            effects_html = '<p class="no-effects"><em>No per-sector effects provided for this outcome.</em></p>'
+
+        parts.append(
+            f'<details class="hypothesis" open>'
+            f'<summary>'
+            f'<span class="hyp-id">{h_id}</span>'
+            f'<span class="hyp-prob">{prob}% {arrow}</span>'
+            f'<span class="hyp-title">{title}</span>'
+            f'</summary>'
+            f'<div class="hyp-body">'
+            f'<p class="hyp-rationale">{display_rationale}</p>'
+            f'{effects_html}'
+            f'</div>'
+            f'</details>'
+        )
+    return "\n".join(parts)
+
+
+def format_html_briefing(
+    raw_text: str,
+    session_type: str,
+    timestamp: str,
+    state_update: dict | None,
+    ceasefire_expiry: str,
+) -> str:
+    """Render the briefing as a tabbed HTML page driven primarily by state_update JSON."""
+
+    stype = session_type.lower()
+    if "pre" in stype:
+        session_label = "Pre-Market Briefing"
+    elif "midday" in stype:
+        session_label = "Midday Briefing"
+    else:
+        session_label = "On-Demand Briefing"
+
+    situation_html = _narrative_to_html(_extract_section(raw_text, "situation_update")) \
+        or "<p><em>No situation update in this briefing.</em></p>"
+    headlines_html = _render_headlines(state_update, raw_text)
+    motives_us_html = _render_motives(
+        (state_update or {}).get("motives_us") or [],
+        "motives_us",
+        raw_text,
+    )
+    motives_iran_html = _render_motives(
+        (state_update or {}).get("motives_iran") or [],
+        "motives_iran",
+        raw_text,
+    )
+    outcomes_html = _render_outcomes(state_update, raw_text)
+    key_watch_html = _narrative_to_html(_extract_section(raw_text, "key_watch")) \
+        or "<p><em>No key watch item.</em></p>"
+    risk_alert_html = _narrative_to_html(_extract_section(raw_text, "risk_alert")) \
+        or "<p><em>No risk alert.</em></p>"
+
+    # Header + ceasefire countdown
+    et = ZoneInfo("America/New_York")
+    now = datetime.now(et)
+    countdown = "Automated Geopolitical & Market Analysis"
+    if ceasefire_expiry:
+        try:
+            expiry_dt = datetime.strptime(ceasefire_expiry, "%Y-%m-%d").replace(tzinfo=et)
+            days = (expiry_dt - now).days
+            if days >= 0:
+                countdown = f"Ceasefire expires {ceasefire_expiry} · {days} day(s) out"
+            else:
+                countdown = f"Ceasefire expired {abs(days)} day(s) ago ({ceasefire_expiry})"
+        except ValueError:
+            pass
+
+    css = """
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
         font-family: Georgia, 'Times New Roman', serif;
         background: #fafaf8;
         color: #1a1a1a;
-        line-height: 1.65;
-        max-width: 780px;
+        line-height: 1.6;
+        max-width: 960px;
         margin: 0 auto;
-        padding: 30px 24px;
-    }}
-    .masthead {{
+        padding: 24px 20px 48px;
+    }
+    .masthead {
         border-bottom: 3px double #1a1a1a;
-        padding-bottom: 14px;
-        margin-bottom: 24px;
-    }}
-    .masthead h1 {{
-        font-size: 22px;
-        letter-spacing: -0.02em;
-    }}
-    .masthead .meta {{
+        padding-bottom: 12px;
+        margin-bottom: 18px;
+    }
+    .masthead h1 { font-size: 22px; letter-spacing: -0.02em; }
+    .masthead .meta {
         font-size: 13px;
         color: #666;
         font-style: italic;
         margin-top: 4px;
-    }}
-    .section {{
-        margin: 20px 0;
-        border: 1px solid #e0ddd8;
-        border-radius: 6px;
-        overflow: hidden;
-    }}
-    .section-header {{
+    }
+    .tab-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        border-bottom: 1px solid #ccc;
+        margin-bottom: 20px;
+    }
+    .tab-btn {
         background: #f0ede8;
-        padding: 10px 16px;
-        font-size: 14px;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        border-bottom: 1px solid #e0ddd8;
-    }}
-    .section-body {{
-        padding: 16px;
-        font-size: 14px;
-    }}
-    .section-body p {{
-        margin-bottom: 12px;
-    }}
-    .section-body p:last-child {{
-        margin-bottom: 0;
-    }}
-    h2 {{
-        font-size: 17px;
-        margin: 18px 0 8px;
+        border: 1px solid #ccc;
+        border-bottom: none;
+        padding: 9px 16px;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        color: #555;
+        border-radius: 5px 5px 0 0;
+        margin-bottom: -1px;
+    }
+    .tab-btn:hover { background: #e8e4dc; color: #1a1a1a; }
+    .tab-btn.active {
+        background: #fafaf8;
+        color: #1a1a1a;
+        border-bottom: 1px solid #fafaf8;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .tab-panel h2 {
+        font-size: 18px;
+        margin-bottom: 14px;
         color: #2c2c2c;
-    }}
-    h3 {{
-        font-size: 15px;
-        margin: 14px 0 6px;
-        color: #444;
-    }}
-    strong {{
+        border-bottom: 1px solid #e0ddd8;
+        padding-bottom: 6px;
+    }
+    .tab-panel h2:not(:first-child) { margin-top: 26px; }
+    .tab-panel p { margin-bottom: 12px; font-size: 14px; }
+    .tab-panel a { color: #3a6ea5; text-decoration: none; }
+    .tab-panel a:hover { text-decoration: underline; }
+    strong { font-weight: 700; }
+
+    ul.headlines { list-style: none; padding: 0; }
+    ul.headlines li {
+        padding: 11px 14px;
+        margin-bottom: 8px;
+        background: #fff;
+        border-left: 3px solid #3a6ea5;
+        font-size: 14px;
+    }
+
+    .motives-narrative { margin-bottom: 14px; }
+    ol.motives { list-style: none; counter-reset: motive; padding: 0; }
+    ol.motives li {
+        counter-increment: motive;
+        padding: 12px 14px 12px 48px;
+        margin-bottom: 8px;
+        background: #fff;
+        border-left: 3px solid #8a5a3a;
+        font-size: 14px;
+        position: relative;
+    }
+    ol.motives li::before {
+        content: counter(motive);
+        position: absolute;
+        left: 14px;
+        top: 11px;
         font-weight: 700;
-    }}
-    .footer {{
+        font-size: 18px;
+        color: #8a5a3a;
+    }
+    .motive-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+    .motive-title .trend { color: #888; font-weight: 400; margin-left: 6px; }
+    .motive-rationale { font-size: 13px; color: #444; line-height: 1.55; }
+
+    .outcome-narrative { margin-bottom: 18px; font-size: 14px; }
+    details.hypothesis {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-left: 4px solid #3a6ea5;
+        border-radius: 4px;
+        margin-bottom: 12px;
+    }
+    details.hypothesis[open] { border-left-color: #1a4e8a; }
+    details.hypothesis > summary {
+        padding: 12px 16px;
+        font-size: 15px;
+        cursor: pointer;
+        list-style: none;
+        font-family: inherit;
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+    }
+    details.hypothesis > summary::-webkit-details-marker { display: none; }
+    details.hypothesis > summary::before {
+        content: "▸";
+        color: #888;
+        font-size: 12px;
+    }
+    details.hypothesis[open] > summary::before { content: "▾"; }
+    .hyp-id { font-weight: 700; color: #3a6ea5; min-width: 30px; }
+    .hyp-prob { font-weight: 700; color: #1a1a1a; min-width: 70px; }
+    .hyp-title { color: #2c2c2c; flex: 1; }
+    .hyp-body { padding: 4px 16px 14px; border-top: 1px solid #eee; }
+    .hyp-rationale { margin: 12px 0; font-size: 14px; color: #333; }
+
+    details.market-effects {
+        margin-top: 10px;
+        background: #f7f6f2;
+        border: 1px solid #e0ddd8;
+        border-radius: 4px;
+    }
+    details.market-effects > summary {
+        padding: 8px 12px;
+        font-weight: 700;
+        font-size: 13px;
+        cursor: pointer;
+        color: #555;
+        list-style: none;
+    }
+    details.market-effects > summary::-webkit-details-marker { display: none; }
+    details.market-effects > summary::before {
+        content: "▸ ";
+        color: #888;
+    }
+    details.market-effects[open] > summary::before { content: "▾ "; }
+    .effects-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+    .effects-table th, .effects-table td {
+        padding: 6px 10px;
+        text-align: left;
+        border-top: 1px solid #e0ddd8;
+        vertical-align: top;
+    }
+    .effects-table th { background: #e8e4dc; font-weight: 700; color: #444; }
+    .effects-table td.direction { font-weight: 700; white-space: nowrap; }
+    .effects-table td.direction.bullish { color: #1f7a3a; }
+    .effects-table td.direction.bearish { color: #a8352a; }
+    .effects-table td.direction.neutral { color: #888; }
+    .effects-table td.tickers { font-family: Consolas, 'Courier New', monospace; font-size: 11px; color: #444; }
+    .effects-table td.note { color: #555; }
+
+    .footer {
         margin-top: 30px;
         padding-top: 14px;
         border-top: 1px solid #ddd;
         font-size: 11px;
         color: #999;
         font-style: italic;
-    }}
-    @media (prefers-color-scheme: dark) {{
-        body {{ background: #1a1a1a; color: #e0e0e0; }}
-        .masthead {{ border-color: #555; }}
-        .section {{ border-color: #333; }}
-        .section-header {{ background: #252525; border-color: #333; }}
-        h2, h3 {{ color: #ccc; }}
-        .masthead .meta {{ color: #888; }}
-    }}
-</style>
+    }
+    @media (prefers-color-scheme: dark) {
+        body { background: #1a1a1a; color: #e0e0e0; }
+        .masthead { border-color: #555; }
+        .masthead .meta { color: #999; }
+        .tab-bar { border-bottom-color: #444; }
+        .tab-btn { background: #252525; border-color: #444; color: #aaa; }
+        .tab-btn:hover { background: #303030; color: #e0e0e0; }
+        .tab-btn.active { background: #1a1a1a; color: #e0e0e0; border-bottom-color: #1a1a1a; }
+        .tab-panel h2 { color: #e0e0e0; border-bottom-color: #3a3a3a; }
+        ul.headlines li, ol.motives li, details.hypothesis { background: #252525; border-color: #444; }
+        details.hypothesis { border-left-color: #4a7eb5; }
+        details.hypothesis[open] { border-left-color: #6fa8dc; }
+        details.market-effects { background: #202020; border-color: #3a3a3a; }
+        .effects-table th { background: #303030; color: #ccc; }
+        .effects-table th, .effects-table td { border-color: #3a3a3a; }
+        .effects-table td.direction.bullish { color: #7dc88e; }
+        .effects-table td.direction.bearish { color: #e38a80; }
+        .hyp-id, .tab-panel a { color: #6fa8dc; }
+        .hyp-title, .hyp-prob { color: #e0e0e0; }
+        .motive-rationale, .hyp-rationale, .effects-table td.note { color: #ccc; }
+        .effects-table td.tickers { color: #bbb; }
+    }
+    """
+
+    html_doc = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iran Peace Talks — {session_label} — {timestamp}</title>
+<style>{css}</style>
 </head>
 <body>
 <div class="masthead">
-    <h1>Iran Peace Talks — {session_label}</h1>
-    <div class="meta">{timestamp} ET · Automated Geopolitical & Market Analysis</div>
+  <h1>Iran Peace Talks — {session_label}</h1>
+  <div class="meta">{timestamp} ET · {countdown}</div>
 </div>
 
-{content}
+<div class="tab-bar">
+  <button type="button" class="tab-btn active" data-tab="tab-situation">Situation</button>
+  <button type="button" class="tab-btn" data-tab="tab-headlines">Recent Headlines</button>
+  <button type="button" class="tab-btn" data-tab="tab-motives">Motives</button>
+  <button type="button" class="tab-btn" data-tab="tab-outcomes">Probable Outcomes</button>
+  <button type="button" class="tab-btn" data-tab="tab-watch">Key Watch</button>
+  <button type="button" class="tab-btn" data-tab="tab-risks">Risk Alert</button>
+</div>
+
+<div class="tab-panel active" id="tab-situation">
+  <h2>Situation Update</h2>
+  {situation_html}
+</div>
+<div class="tab-panel" id="tab-headlines">
+  <h2>Recent Headlines</h2>
+  {headlines_html}
+</div>
+<div class="tab-panel" id="tab-motives">
+  <h2>US / Trump Administration Motives</h2>
+  {motives_us_html}
+  <h2>Iran Motives</h2>
+  {motives_iran_html}
+</div>
+<div class="tab-panel" id="tab-outcomes">
+  <h2>Probable Outcomes</h2>
+  {outcomes_html}
+</div>
+<div class="tab-panel" id="tab-watch">
+  <h2>Key Watch</h2>
+  {key_watch_html}
+</div>
+<div class="tab-panel" id="tab-risks">
+  <h2>Risk Alert</h2>
+  {risk_alert_html}
+</div>
 
 <div class="footer">
-    This briefing was generated automatically using Claude Code with web search.
-    It is analytical commentary, not investment advice. All sector predictions are directional
-    estimates for discussion purposes. Consult a licensed financial advisor before making
-    investment decisions. Sources are paraphrased to respect copyright.
+  Automated analytical commentary generated via Claude Code with web search.
+  Not investment advice. Sources paraphrased to respect copyright. Consult a
+  licensed financial advisor before making investment decisions.
 </div>
+
+<script>
+document.querySelectorAll('.tab-btn').forEach(btn => {{
+  btn.addEventListener('click', () => {{
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  }});
+}});
+</script>
 </body>
 </html>"""
-    return html
+    return html_doc
 
 
 # ─── Email Delivery ─────────────────────────────────────────────────────────
@@ -711,8 +1202,22 @@ def run_briefing(config: dict, session_type: str = "pre-market"):
     filename = f"briefing_{file_timestamp}_{session_type.replace('-', '_')}.html"
     filepath = output_dir / filename
 
+    # Parse <state_update> first so the HTML renderer can use structured data.
+    state_update = extract_state_update(raw)
+    ceasefire_expiry = ""
+    if state_update and "ceasefire_expiry" in state_update:
+        ceasefire_expiry = state_update.get("ceasefire_expiry") or ""
+    else:
+        ceasefire_expiry = state.get("ceasefire_expiry", "")
+
     display_text = strip_state_update(raw)
-    html = format_html_briefing(display_text, session_type, timestamp)
+    html = format_html_briefing(
+        display_text,
+        session_type,
+        timestamp,
+        state_update,
+        ceasefire_expiry,
+    )
 
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(html)
@@ -726,8 +1231,7 @@ def run_briefing(config: dict, session_type: str = "pre-market"):
         f.write(raw)
     print(f"  ✓ Saved full raw text to {txt_path}")
 
-    # Parse the state update block and advance persistent state
-    state_update = extract_state_update(raw)
+    # Advance persistent state using the state_update we parsed earlier.
     if state_update is None:
         print(f"  ⚠ No valid <state_update> block found — persistent state NOT advanced.")
         print(f"    Next briefing will see the same state as this one did.")
@@ -815,7 +1319,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python iran_briefing.py                  Run a single pre-market briefing now
+  python iran_briefing.py                  Run a single on-demand briefing now
+  python iran_briefing.py --premarket      Run a single pre-market briefing now
   python iran_briefing.py --midday         Run a single midday briefing now
   python iran_briefing.py --schedule       Start the automated scheduler
   python iran_briefing.py --test-email     Send a test email to verify SMTP config
@@ -826,7 +1331,9 @@ Examples:
     parser.add_argument("--schedule", action="store_true",
                         help="Run on automated schedule (midday briefing, 12:30 PM ET)")
     parser.add_argument("--midday", action="store_true",
-                        help="Run a midday briefing (default is pre-market)")
+                        help="Label this run as a midday briefing")
+    parser.add_argument("--premarket", action="store_true",
+                        help="Label this run as a pre-market briefing")
     parser.add_argument("--test-email", action="store_true",
                         help="Send a test email to verify SMTP configuration")
     parser.add_argument("--set-agreement", type=str, metavar="YYYY-MM-DD",
@@ -873,7 +1380,12 @@ Examples:
             print("\n\n  Scheduler stopped by user. Goodbye.\n")
         return
 
-    session_type = "midday" if args.midday else "pre-market"
+    if args.midday:
+        session_type = "midday"
+    elif args.premarket:
+        session_type = "pre-market"
+    else:
+        session_type = "on-demand"
     run_briefing(config, session_type)
 
 
