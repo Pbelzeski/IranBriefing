@@ -13,7 +13,7 @@ baseline each run.
 
 Usage:
     python iran_briefing.py                 # Run once now
-    python iran_briefing.py --schedule      # Run on schedule (9:00 AM & 12:30 PM ET)
+    python iran_briefing.py --schedule      # Run on schedule (midday briefing, 12:30 PM ET)
     python iran_briefing.py --test-email    # Send a test email to verify config
     python iran_briefing.py --reset-state   # Delete state.json, restart from baselines
 """
@@ -754,7 +754,6 @@ def run_scheduler(config: dict):
     print("\n" + "=" * 60)
     print("  IRAN BRIEFING SCHEDULER")
     print("=" * 60)
-    print(f"  Pre-market briefing: {config['premarket_hour']:02d}:{config['premarket_minute']:02d} ET")
     print(f"  Midday briefing:     {config['midday_hour']:02d}:{config['midday_minute']:02d} ET")
     print(f"  Model / effort:      {config['model']} / {config['effort']}")
     print(f"  Output directory:    {config['output_dir']}")
@@ -776,31 +775,20 @@ def run_scheduler(config: dict):
             time.sleep(min(sleep_secs, 3600))
             continue
 
-        premarket_time = now.replace(
-            hour=config["premarket_hour"],
-            minute=config["premarket_minute"],
-            second=0, microsecond=0,
-        )
         midday_time = now.replace(
             hour=config["midday_hour"],
             minute=config["midday_minute"],
             second=0, microsecond=0,
         )
 
-        upcoming = []
-        if now < premarket_time:
-            upcoming.append(("pre-market", premarket_time))
-        if now < midday_time:
-            upcoming.append(("midday", midday_time))
-
-        if not upcoming:
-            tomorrow_premarket = premarket_time + timedelta(days=1)
-            sleep_secs = (tomorrow_premarket - now).total_seconds()
-            print(f"  All briefings done for today. Next: {tomorrow_premarket.strftime('%A %I:%M %p ET')}")
+        if now >= midday_time:
+            tomorrow_midday = midday_time + timedelta(days=1)
+            sleep_secs = (tomorrow_midday - now).total_seconds()
+            print(f"  Midday briefing done for today. Next: {tomorrow_midday.strftime('%A %I:%M %p ET')}")
             time.sleep(min(sleep_secs, 3600))
             continue
 
-        session_type, target_time = upcoming[0]
+        session_type, target_time = "midday", midday_time
         sleep_secs = (target_time - now).total_seconds()
 
         if sleep_secs > 60:
@@ -836,7 +824,7 @@ Examples:
         """,
     )
     parser.add_argument("--schedule", action="store_true",
-                        help="Run on automated schedule (9:00 AM & 12:30 PM ET)")
+                        help="Run on automated schedule (midday briefing, 12:30 PM ET)")
     parser.add_argument("--midday", action="store_true",
                         help="Run a midday briefing (default is pre-market)")
     parser.add_argument("--test-email", action="store_true",

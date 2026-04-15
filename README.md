@@ -64,11 +64,10 @@ At max effort with web search, a single briefing can take several minutes.
 python iran_briefing.py --schedule
 ```
 
-This runs continuously, generating briefings at:
-- **9:00 AM ET** — Pre-market briefing (30 min before NYSE open)
+This runs continuously, generating one briefing per trading day:
 - **12:30 PM ET** — Midday briefing (halfway through trading)
 
-Weekends are skipped automatically. Press `Ctrl+C` to stop.
+Weekends are skipped automatically. Press `Ctrl+C` to stop. To run an ad-hoc pre-market briefing on top of the scheduled midday one, invoke `python iran_briefing.py` manually without `--schedule`.
 
 ---
 
@@ -189,20 +188,18 @@ crontab -e
 
 Add:
 ```
-0 9 * * 1-5 cd /path/to/iran_briefing && python3 iran_briefing.py >> cron_log.txt 2>&1
 30 12 * * 1-5 cd /path/to/iran_briefing && python3 iran_briefing.py --midday >> cron_log.txt 2>&1
 ```
 
 ### Windows — Task Scheduler
 
 1. Open Task Scheduler
-2. Create Basic Task → name it "Iran Briefing Pre-Market"
-3. Trigger: Daily at 9:00 AM
+2. Create Basic Task → name it "Iran Briefing Midday"
+3. Trigger: Daily at 12:30 PM
 4. Action: Start a program
    - Program: `python`
-   - Arguments: `C:\path\to\iran_briefing.py`
+   - Arguments: `C:\path\to\iran_briefing.py --midday`
    - Start in: `C:\path\to\iran_briefing\`
-5. Repeat for 12:30 PM with the `--midday` flag
 
 Make sure the task runs under a user account that has already run `claude auth`.
 
