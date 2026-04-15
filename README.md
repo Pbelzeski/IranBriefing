@@ -1,19 +1,50 @@
 # Iran Peace Talks — Automated Market Briefing System
 
-Generates twice-daily geopolitical and market analysis briefings on the 2026 Iran War peace talks and their NYSE sector implications.
+Generates a daily geopolitical and market analysis briefing on the 2026 Iran War peace talks and their NYSE sector implications, with additional ad-hoc briefings on demand.
 
-The system shells out to the [Claude Code](https://docs.claude.com/claude-code) CLI in headless mode (running Opus at max effort with web search), applies a structured analytical framework, and produces timestamped HTML briefings. A persistent state file carries hypotheses forward across runs so probabilities drift continuously instead of resetting each briefing. Runs are billed against your Claude subscription, not the Anthropic API.
+The system shells out to the [Claude Code](https://docs.claude.com/claude-code) CLI in headless mode (running Opus at max effort with web search), applies a structured analytical framework, and produces a timestamped tabbed HTML page per run. A persistent state file carries hypotheses, motives, and ceasefire status forward across runs so the analysis drifts continuously instead of resetting each briefing. Runs are billed against your Claude subscription, not the Anthropic API.
 
 ## What You Get
 
-Each briefing includes:
+Each briefing is rendered as a tabbed HTML page with the following sections:
+
 - **Situation Update** — what happened since the last briefing, and whether the previous "Key Watch" item resolved
-- **Hypothesis Probabilities** — updated weightings for the active peace-talk outcome scenarios (hypotheses can be retired, merged, or newly introduced as the situation evolves)
-- **NYSE Sector Calls** — directional predictions for Energy (XLE), Defense (ITA), Airlines (JETS), Tech (QQQ), Consumer Discretionary (XLY), Financials (XLF), Gold (GLD/GDX), Industrials (XLI), Utilities (XLU), Real Estate (XLRE), Volatility (VIX / VXX / UVXY)
+- **Recent Headlines** — 5-10 of the most significant news items since the last run, with source and URL
+- **Probable Motives (US)** — ranked top 5 drivers behind current US / Trump-administration policy, with a trend arrow showing whether each motive gained or lost weight since the last briefing
+- **Probable Motives (Iran)** — same ranking for Iran's side
+- **Probable Outcomes** — each active hypothesis is a collapsible card showing its current probability, trend, rationale, and a nested per-sector market-effects table conditional on that scenario playing out. Hypotheses can be retired, merged, or newly introduced as the situation evolves.
 - **Key Watch** — the single most important thing to monitor before the next briefing
 - **Risk Alert** — tail risks that could invalidate the current framework
 
+The per-hypothesis market-effects tables cover Energy (XLE), Defense (ITA), Airlines (JETS), Tech (QQQ), Consumer Discretionary (XLY), Financials (XLF), Gold (GLD/GDX), Industrials (XLI), Utilities (XLU), Real Estate (XLRE), and Volatility (VIX / VXX / UVXY), each with a direction (bullish / bearish / neutral), a conviction level, tickers, and a one-line rationale.
+
 Briefings auto-stop 7 days after a peace agreement is recorded.
+
+---
+
+## Tested vs. Untested Functionality
+
+This project was built and tested on **Windows 11** using the **Claude Code CLI** against a **Claude Max subscription**. Anything outside that configuration is provided as a best-effort convenience but has not been exercised end-to-end. Treat the untested items as starting points rather than known-good recipes.
+
+| Feature | Status |
+|---|---|
+| One-shot briefing generation (`python iran_briefing.py`) | ✅ Tested on Windows |
+| On-demand, pre-market, and midday session labels | ✅ Tested on Windows |
+| Tabbed HTML output with collapsible hypothesis cards | ✅ Tested on Windows |
+| Persistent state (hypotheses, motives, ceasefire, headlines carry-forward) | ✅ Tested on Windows |
+| `--reset-state` | ✅ Tested on Windows |
+| `--set-agreement` and 7-day auto-stop logic | ✅ Tested on Windows (auto-stop not yet observed in the wild) |
+| Built-in scheduler (`--schedule`) | ✅ Tested on Windows |
+| Windows Task Scheduler (recommended production path) | ✅ Tested |
+| Email delivery (`email_enabled`, SMTP, `--test-email`) | ⚠️ **Untested.** SMTP code path has never been exercised. Gmail app password setup and the provider table are best-effort guidance — expect to debug. |
+| macOS `nohup` background run | ⚠️ **Untested.** Shell syntax should be correct but has not been run on a Mac. |
+| macOS Launch Agent (`launchd` plist) | ⚠️ **Untested.** The plist has not been loaded on a real machine. Verify paths and the `launchctl load` flow yourself before relying on it. |
+| Linux cron entry | ⚠️ **Untested.** Cron line is syntactically correct but has not been installed on a Linux host. |
+| Running against the Anthropic API instead of the Claude Code CLI | ❌ **Not supported.** The script shells out to the `claude` CLI only. There is no API-based code path. |
+
+### Cost note for always-on hosting
+
+If you want to run this on a small always-on machine so your laptop isn't the point of failure, a $5/month Linux VPS (DigitalOcean, Hetzner, Linode, etc.) is enough to host the `claude` CLI and cron. **However**, the `claude` CLI still requires an interactive browser-based login (`claude auth`) that is tied to a Pro or Max subscription — the same subscription that covers your local usage, not a per-API-call bill. If you can't get the subscription session to persist on the remote host and fall back to the Anthropic API, every briefing becomes a metered API call with real per-token costs on top of the server rent. Budget accordingly before committing to a remote host.
 
 ---
 
@@ -67,20 +98,22 @@ python iran_briefing.py --schedule
 This runs continuously, generating one briefing per trading day:
 - **12:30 PM ET** — Midday briefing (halfway through trading)
 
-Weekends are skipped automatically. Press `Ctrl+C` to stop. To run an ad-hoc on-demand briefing on top of the scheduled midday one, invoke `python iran_briefing.py` manually without `--schedule`.
+Weekends are skipped automatically. Press `Ctrl+C` to stop. To run an extra ad-hoc briefing between scheduled runs (for example after breaking news), invoke `python iran_briefing.py` manually in another terminal — it shares the same persistent state and will be labeled "on-demand" in the header and filename.
 
 ---
 
 ## How Persistent State Works
 
-After each briefing, the script parses a `<state_update>` JSON block out of Claude's output and writes it to [state.json](state.json) in the project root. The next run injects that state into the prompt so Claude sees:
+After each briefing, the script parses a `<state_update>` JSON block out of Claude's output and writes it to [state.json](state.json) in the project root. The next run injects that state into the prompt so the analyst sees:
 
 - The previous situation snapshot
-- All currently active hypotheses with their last probabilities and rationales
+- All currently active hypotheses with their last probabilities, rationales, and per-sector market effects
 - Retired hypotheses (so they aren't accidentally re-introduced)
+- The top 5 ranked motives for each side, with trend arrows
+- The currently tracked ceasefire expiry date
 - The previous "Key Watch" and "Risk Alert" items
 
-This means hypotheses drift over time rather than resetting to baseline each run. To start fresh from the baseline hypotheses, delete the state file:
+This means hypotheses, motives, and the ceasefire timeline drift over time rather than resetting to baseline each run. To start fresh from the baseline framework, reset the state file:
 
 ```bash
 python iran_briefing.py --reset-state
@@ -89,6 +122,8 @@ python iran_briefing.py --reset-state
 ---
 
 ## Email Delivery (Optional)
+
+> ⚠️ **Untested.** The email code path has not been exercised end-to-end. Treat this section as a starting point and expect to debug before relying on it.
 
 To receive briefings in your inbox, update [config.json](config.json):
 
@@ -133,6 +168,8 @@ python iran_briefing.py --test-email
 
 ### macOS / Linux — Keep Running After Closing Terminal
 
+> ⚠️ **Untested.** This shell pattern has not been run on a Mac or Linux host as part of this project. The syntax is standard but verify on your side.
+
 ```bash
 nohup python iran_briefing.py --schedule > briefing_log.txt 2>&1 &
 echo $! > briefing_pid.txt
@@ -144,6 +181,8 @@ kill $(cat briefing_pid.txt)
 ```
 
 ### macOS — Launch Agent (starts on boot)
+
+> ⚠️ **Untested.** The plist below has not been loaded on a real machine. Verify paths and the `launchctl load` flow before trusting it in production.
 
 Create `~/Library/LaunchAgents/com.iran.briefing.plist`:
 
@@ -182,6 +221,8 @@ The Launch Agent inherits your authenticated `claude` CLI credentials, so no API
 
 ### Linux — Cron (Alternative to Built-in Scheduler)
 
+> ⚠️ **Untested.** Cron line is syntactically correct but has not been installed on a Linux host.
+
 ```bash
 crontab -e
 ```
@@ -192,6 +233,8 @@ Add:
 ```
 
 ### Windows — Task Scheduler
+
+> ✅ **Tested.** This is the production path used by the author. Windows Task Scheduler handles timing, weekends, and reboots, and the script's internal auto-stop handles the 7-day post-agreement cutoff.
 
 1. Open Task Scheduler
 2. Create Basic Task → name it "Iran Briefing Midday"
