@@ -1578,6 +1578,17 @@ def run_scheduler(config: dict):
 # ─── CLI ────────────────────────────────────────────────────────────────────
 
 def main():
+    # Force UTF-8 stdout/stderr so the script's ✓ / — / arrow characters print
+    # correctly when launched from a Windows console (Git Bash, cmd, PowerShell)
+    # where Python defaults to cp1252 and would crash on those characters.
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except ValueError:
+                pass
+
     parser = argparse.ArgumentParser(
         description="Iran Peace Talks Automated Market Briefing System",
         formatter_class=argparse.RawDescriptionHelpFormatter,
