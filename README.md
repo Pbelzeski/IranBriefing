@@ -157,6 +157,19 @@ python iran_briefing.py --publish
 
 Useful if a previous push failed (e.g. transient network error), if you want to seed the site without waiting for the next briefing, or after manually editing files in `docs/`.
 
+### Issuing corrections to a published briefing
+
+If you spot a factual error in a briefing that's already on the public site, append a correction note:
+
+```bash
+python iran_briefing.py --add-correction briefing_20260415_2342_on_demand.html "Brief said X, actual was Y per <source>."
+python iran_briefing.py --publish
+```
+
+This appends an entry to `corrections.json` (kept in the repo root, alongside `state.json`). On the next publish, the publisher injects a yellow correction banner at the top of that briefing's HTML and adds a `⚠ N` marker to its tab in the index. The original generated HTML stays untouched in `briefings/` — only the published copy in `docs/briefings/` carries the banner. Multiple corrections on the same briefing are appended in order.
+
+Corrections also propagate **forward into the next briefing's analysis**: when the next briefing runs, every undelivered correction is injected into the analyst's prompt, with instructions to re-evaluate any inherited probabilities or conclusions that depended on the wrong facts. After the analyst run completes successfully, those corrections are marked `delivered_to_briefing: <new_filename>` in `corrections.json` so they aren't re-delivered. The public banner stays in place forever as an audit trail.
+
 ---
 
 ## Email Delivery (Optional)
@@ -312,6 +325,7 @@ To restart after it stops, clear the agreement date by editing `agreement_date` 
 | `python iran_briefing.py --set-agreement 2026-04-18` | Set agreement date for auto-stop |
 | `python iran_briefing.py --reset-state` | Delete `state.json` and restart from baseline hypotheses |
 | `python iran_briefing.py --publish` | Re-publish `docs/` from local `briefings/` and push to GitHub Pages (no new briefing) |
+| `python iran_briefing.py --add-correction <briefing.html> "<note>"` | Append a correction note to a published briefing; banner appears on next `--publish` |
 
 ---
 

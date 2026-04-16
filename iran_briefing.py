@@ -383,7 +383,7 @@ The NYSE {market_status}.
 {ceasefire_line}
 
 {previous_state_block}
-
+{corrections_block}
 Search for the LATEST information on:
 1. Iran-US peace talks status and any new developments today
 2. Strait of Hormuz / blockade status
@@ -604,6 +604,10 @@ def generate_briefing(config: dict, session_type: str, state: dict) -> str:
     else:
         market_status = "is currently closed"
 
+    pending = pending_corrections()
+    if pending:
+        print(f"  ⚠ Injecting {len(pending)} pending correction(s) into the analyst prompt.")
+
     user_prompt = USER_PROMPT_TEMPLATE.format(
         session_type=session_type.replace("-", " ").title(),
         date_str=date_str,
@@ -611,6 +615,7 @@ def generate_briefing(config: dict, session_type: str, state: dict) -> str:
         market_status=market_status,
         ceasefire_line=ceasefire_line,
         previous_state_block=format_state_for_prompt(state),
+        corrections_block=format_corrections_for_prompt(pending),
     )
 
     print(f"  Calling Claude Code (model={config['model']}, effort={config['effort']}) with web search...")
@@ -1196,11 +1201,19 @@ def _build_index_html(site_title: str, briefings: list) -> str:
             date_label = b["datetime"].strftime("%b %d")
             time_label = b["datetime"].strftime("%-I:%M %p") if os.name != "nt" else b["datetime"].strftime("%#I:%M %p")
             active = " active" if i == 0 else ""
+            n_corrections = b.get("corrections", 0)
+            marker = (
+                f'<span class="tab-corrections" title="{n_corrections} correction(s) on this briefing">⚠ {n_corrections}</span>'
+                if n_corrections else ""
+            )
+            tooltip = f'{b["label"]} — {b["datetime"].strftime("%Y-%m-%d %H:%M")}'
+            if n_corrections:
+                tooltip += f" — {n_corrections} correction(s)"
             tab_items.append(
                 f'<button class="folder-tab{active}" '
                 f'data-src="briefings/{html_module.escape(b["filename"])}" '
-                f'title="{html_module.escape(b["label"])} — {b["datetime"].strftime("%Y-%m-%d %H:%M")}">'
-                f'<span class="tab-date">{date_label}</span>'
+                f'title="{html_module.escape(tooltip)}">'
+                f'<span class="tab-date">{date_label}{marker}</span>'
                 f'<span class="tab-meta">{html_module.escape(b["label"])} · {time_label}</span>'
                 f'</button>'
             )
@@ -1291,6 +1304,17 @@ def _build_index_html(site_title: str, briefings: list) -> str:
     color: var(--ink-soft);
     margin-top: 0.1rem;
   }}
+  .folder-tab .tab-corrections {{
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0 0.35rem;
+    border-radius: 8px;
+    background: #ffd76b;
+    color: #604700;
+    font-size: 0.65rem;
+    font-weight: 600;
+    vertical-align: middle;
+  }}
   .frame-wrap {{
     background: #fff;
     border-top: 2px solid var(--folder-edge);
@@ -1340,6 +1364,123 @@ def _build_index_html(site_title: str, briefings: list) -> str:
 """
 
 
+CORRECTIONS_FILE = Path(__file__).parent / "corrections.json"
+
+
+def load_corrections() -> dict:
+    """Load corrections.json (a map of briefing filename → list of correction entries)."""
+    if not CORRECTIONS_FILE.exists():
+        return {}
+    try:
+        with open(CORRECTIONS_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"  ⚠ Could not read {CORRECTIONS_FILE.name}: {e}")
+        return {}
+
+
+def save_corrections(data: dict) -> None:
+    with open(CORRECTIONS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def pending_corrections() -> list:
+    """Return correction entries that have not yet been delivered to an analyst run.
+
+    Each result is a dict: {briefing, added_at, note}. The 'briefing' field is
+    the filename of the briefing the correction applies to, so the analyst can
+    reason about which prior conclusions might need revising.
+    """
+    data = load_corrections()
+    pending = []
+    for briefing, entries in data.items():
+        for entry in entries:
+            if entry.get("delivered_to_briefing"):
+                continue
+            pending.append({
+                "briefing": briefing,
+                "added_at": entry.get("added_at", ""),
+                "note": entry.get("note", ""),
+            })
+    pending.sort(key=lambda c: c["added_at"])
+    return pending
+
+
+def mark_corrections_delivered(delivered_to_filename: str) -> int:
+    """Mark every currently-pending correction as delivered to the given briefing.
+
+    Returns the number of correction entries that were marked. Safe to call
+    even if there are none pending.
+    """
+    data = load_corrections()
+    n = 0
+    for entries in data.values():
+        for entry in entries:
+            if not entry.get("delivered_to_briefing"):
+                entry["delivered_to_briefing"] = delivered_to_filename
+                n += 1
+    if n:
+        save_corrections(data)
+    return n
+
+
+def format_corrections_for_prompt(pending: list) -> str:
+    """Render the corrections section that gets injected into the analyst prompt."""
+    if not pending:
+        return ""
+    lines = [
+        "",
+        "## CORRECTIONS TO PRIOR BRIEFINGS",
+        "",
+        "The following factual errors were identified in earlier briefings *after* they were "
+        "published. The hypothesis probabilities, motive rankings, and other state you inherited "
+        "above were computed using the ERRONEOUS facts. Re-evaluate any inherited conclusion that "
+        "depended on a corrected fact, and revise probabilities accordingly in this briefing's "
+        "<state_update>. If a correction does not affect a current conclusion, you may ignore it.",
+        "",
+    ]
+    for i, c in enumerate(pending, 1):
+        lines.append(f"**Correction {i}** (on `{c['briefing']}`, recorded {c['added_at']}):")
+        lines.append(c["note"])
+        lines.append("")
+    return "\n".join(lines)
+
+
+def _render_correction_banner(entries: list) -> str:
+    """Render a yellow banner listing all corrections for one briefing.
+
+    The banner is injected into the published copy of the briefing HTML.
+    Each entry: {"added_at": ISO timestamp, "note": "..."}
+    """
+    items = []
+    for e in entries:
+        added_at = html_module.escape(e.get("added_at", ""))
+        note = html_module.escape(e.get("note", "")).replace("\n", "<br>")
+        items.append(f'<li><time datetime="{added_at}">{added_at}</time> — {note}</li>')
+    items_html = "\n".join(items)
+    plural = "s" if len(entries) != 1 else ""
+    return (
+        '<aside style="background:#fff3cd;border:1px solid #ffd76b;border-radius:6px;'
+        'padding:0.75rem 1rem;margin:0 0 1rem 0;font-family:-apple-system,BlinkMacSystemFont,'
+        '\'Segoe UI\',Roboto,sans-serif;color:#604700;font-size:0.92rem;line-height:1.45">'
+        f'<strong>Correction{plural} ({len(entries)})</strong>'
+        f'<ul style="margin:0.4rem 0 0 1.1rem;padding:0">{items_html}</ul>'
+        '</aside>'
+    )
+
+
+def _inject_correction_banner(html: str, banner: str) -> str:
+    """Insert the banner immediately after <body ...> in the briefing HTML.
+
+    Falls back to prepending if no <body> tag is found.
+    """
+    m = re.search(r"<body[^>]*>", html, flags=re.IGNORECASE)
+    if not m:
+        return banner + html
+    insert_at = m.end()
+    return html[:insert_at] + "\n" + banner + "\n" + html[insert_at:]
+
+
 def publish_to_docs(config: dict, latest_html_path=None) -> bool:
     """Mirror briefings into docs/, rebuild index.html, commit + push.
 
@@ -1356,12 +1497,26 @@ def publish_to_docs(config: dict, latest_html_path=None) -> bool:
     if not output_dir.is_absolute():
         output_dir = (repo_root / output_dir).resolve()
 
+    corrections = load_corrections()
+
     # Mirror every HTML briefing in output_dir into docs/briefings/.
+    # Always rewrite when there are corrections for that file so banner edits
+    # in corrections.json propagate even if the source HTML hasn't changed.
     if output_dir.exists():
         for src in output_dir.glob("briefing_*.html"):
             dst = docs_briefings / src.name
-            if not dst.exists() or src.stat().st_mtime > dst.stat().st_mtime:
-                dst.write_bytes(src.read_bytes())
+            entries = corrections.get(src.name, [])
+            needs_update = (
+                not dst.exists()
+                or src.stat().st_mtime > dst.stat().st_mtime
+                or bool(entries)
+            )
+            if not needs_update:
+                continue
+            html = src.read_text(encoding="utf-8")
+            if entries:
+                html = _inject_correction_banner(html, _render_correction_banner(entries))
+            dst.write_text(html, encoding="utf-8")
 
     # Build the archive list newest-first.
     briefings = []
@@ -1370,7 +1525,12 @@ def publish_to_docs(config: dict, latest_html_path=None) -> bool:
         if parsed is None:
             continue
         dt, label = parsed
-        briefings.append({"filename": f.name, "datetime": dt, "label": label})
+        briefings.append({
+            "filename": f.name,
+            "datetime": dt,
+            "label": label,
+            "corrections": len(corrections.get(f.name, [])),
+        })
     briefings.sort(key=lambda b: b["datetime"], reverse=True)
 
     index_html = _build_index_html(config.get("site_title", "Iran Peace Talks — Market Briefings"), briefings)
@@ -1497,6 +1657,9 @@ def run_briefing(config: dict, session_type: str = "pre-market"):
         save_state(new_state)
         print(f"  ✓ State updated: {len(new_state['hypotheses'])} active, "
               f"{len(new_state['retired_hypotheses'])} retired total")
+        n_marked = mark_corrections_delivered(filepath.name)
+        if n_marked:
+            print(f"  ✓ Marked {n_marked} correction(s) as delivered to {filepath.name}.")
 
     # Email
     subject = f"Iran Briefing: {session_type.replace('-', ' ').title()} — {now.strftime('%b %d')}"
@@ -1617,6 +1780,10 @@ Examples:
                         help="Delete state.json so the next briefing starts from baseline hypotheses")
     parser.add_argument("--publish", action="store_true",
                         help="Re-publish docs/ from local briefings/ and push to GitHub Pages (no new briefing)")
+    parser.add_argument("--add-correction", nargs=2, metavar=("BRIEFING", "NOTE"),
+                        help="Append a correction note to a published briefing. "
+                             "BRIEFING is the .html filename (e.g. briefing_20260415_2342_on_demand.html); "
+                             "NOTE is the correction text. Re-run --publish afterward to push.")
     args = parser.parse_args()
 
     config = load_config()
@@ -1640,6 +1807,23 @@ Examples:
             json.dump(file_config, f, indent=2, ensure_ascii=False)
         print(f"✓ Agreement date set to {args.set_agreement}")
         print(f"  Briefings will auto-stop 7 days after this date.")
+        return
+
+    if args.add_correction:
+        briefing_name, note = args.add_correction
+        if not briefing_name.endswith(".html"):
+            briefing_name = briefing_name + ".html"
+        repo_root = Path(__file__).parent
+        if not (repo_root / "briefings" / briefing_name).exists() and \
+           not (repo_root / "docs" / "briefings" / briefing_name).exists():
+            print(f"✗ No briefing named {briefing_name} found in briefings/ or docs/briefings/.")
+            return
+        data = load_corrections()
+        added_at = datetime.now(ZoneInfo("America/New_York")).isoformat(timespec="seconds")
+        data.setdefault(briefing_name, []).append({"added_at": added_at, "note": note})
+        save_corrections(data)
+        print(f"✓ Added correction to {briefing_name} ({len(data[briefing_name])} total).")
+        print(f"  Run `python iran_briefing.py --publish` to push the banner to GitHub Pages.")
         return
 
     if args.publish:
