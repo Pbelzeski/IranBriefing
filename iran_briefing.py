@@ -111,7 +111,7 @@ def load_config():
     config_path = Path(__file__).parent / "config.json"
     file_config = {}
     if config_path.exists():
-        with open(config_path) as f:
+        with open(config_path, encoding="utf-8") as f:
             file_config = json.load(f)
 
     return {
@@ -132,6 +132,9 @@ def load_config():
         "midday_minute": int(os.getenv("MIDDAY_MINUTE", file_config.get("midday_minute", 30))),
         # Auto-stop: stop running after agreement + 7 days
         "agreement_date": os.getenv("AGREEMENT_DATE", file_config.get("agreement_date", "")),
+        # GitHub Pages publishing (optional): copy HTML into docs/, rebuild index, commit + push.
+        "publish_enabled": os.getenv("PUBLISH_ENABLED", str(file_config.get("publish_enabled", False))).lower() == "true",
+        "site_title": os.getenv("SITE_TITLE", file_config.get("site_title", "Iran Peace Talks — Market Briefings")),
     }
 
 
@@ -1156,6 +1159,260 @@ def send_email(config: dict, subject: str, html_body: str):
 
 # ─── Main Briefing Runner ──────────────────────────────────────────────────
 
+# ─── GitHub Pages publishing ────────────────────────────────────────────────
+
+BRIEFING_FILENAME_RE = re.compile(
+    r"^briefing_(\d{8})_(\d{4})_([a-z_]+)\.html$"
+)
+
+
+def _parse_briefing_filename(name: str):
+    """Return (datetime, session_label) for a briefing filename, or None if it doesn't match."""
+    m = BRIEFING_FILENAME_RE.match(name)
+    if not m:
+        return None
+    date_str, time_str, session_slug = m.groups()
+    try:
+        dt = datetime.strptime(f"{date_str} {time_str}", "%Y%m%d %H%M")
+    except ValueError:
+        return None
+    label = session_slug.replace("_", " ").title()
+    return dt, label
+
+
+def _build_index_html(site_title: str, briefings: list) -> str:
+    """Render docs/index.html given a list of briefings sorted newest-first.
+
+    Each briefing is a dict: {filename, datetime, label}. The newest is loaded
+    in an iframe by default; clicking another tab swaps the iframe src.
+    """
+    if not briefings:
+        body_inner = "<p style='padding:2rem;color:#6b6b6b'>No briefings published yet.</p>"
+        tabs_html = ""
+    else:
+        latest = briefings[0]
+        tab_items = []
+        for i, b in enumerate(briefings):
+            date_label = b["datetime"].strftime("%b %d")
+            time_label = b["datetime"].strftime("%-I:%M %p") if os.name != "nt" else b["datetime"].strftime("%#I:%M %p")
+            active = " active" if i == 0 else ""
+            tab_items.append(
+                f'<button class="folder-tab{active}" '
+                f'data-src="briefings/{html_module.escape(b["filename"])}" '
+                f'title="{html_module.escape(b["label"])} — {b["datetime"].strftime("%Y-%m-%d %H:%M")}">'
+                f'<span class="tab-date">{date_label}</span>'
+                f'<span class="tab-meta">{html_module.escape(b["label"])} · {time_label}</span>'
+                f'</button>'
+            )
+        tabs_html = "\n".join(tab_items)
+        body_inner = (
+            f'<iframe id="briefing-frame" src="briefings/{html_module.escape(latest["filename"])}" '
+            f'title="Latest briefing"></iframe>'
+        )
+
+    updated = datetime.now(ZoneInfo("America/New_York")).strftime("%B %d, %Y %I:%M %p ET")
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{html_module.escape(site_title)}</title>
+<style>
+  :root {{
+    --folder-bg: #f5e9c8;
+    --folder-edge: #c9b483;
+    --folder-active: #fff8e1;
+    --page-bg: #efe7d3;
+    --ink: #2c2a26;
+    --ink-soft: #6b6b6b;
+  }}
+  * {{ box-sizing: border-box; }}
+  body {{
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--page-bg);
+    color: var(--ink);
+  }}
+  header {{
+    padding: 1rem 1.25rem 0.5rem;
+    border-bottom: 1px solid var(--folder-edge);
+    background: var(--page-bg);
+  }}
+  header h1 {{
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }}
+  header .updated {{
+    margin-top: 0.15rem;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+  }}
+  .tab-strip {{
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 2px;
+    padding: 0.75rem 1rem 0;
+    background: var(--page-bg);
+    scrollbar-width: thin;
+  }}
+  .folder-tab {{
+    flex: 0 0 auto;
+    background: var(--folder-bg);
+    border: 1px solid var(--folder-edge);
+    border-bottom: none;
+    border-radius: 10px 10px 0 0;
+    padding: 0.5rem 0.9rem 0.55rem;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    line-height: 1.15;
+    color: var(--ink);
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.04);
+    transition: background 0.12s;
+  }}
+  .folder-tab:hover {{ background: #fbeec3; }}
+  .folder-tab.active {{
+    background: var(--folder-active);
+    box-shadow: inset 0 -3px 0 var(--folder-active);
+    position: relative;
+    z-index: 2;
+  }}
+  .folder-tab .tab-date {{
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }}
+  .folder-tab .tab-meta {{
+    display: block;
+    font-size: 0.7rem;
+    color: var(--ink-soft);
+    margin-top: 0.1rem;
+  }}
+  .frame-wrap {{
+    background: #fff;
+    border-top: 2px solid var(--folder-edge);
+    height: calc(100vh - 130px);
+    min-height: 400px;
+  }}
+  #briefing-frame {{
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    background: #fff;
+  }}
+  footer {{
+    padding: 0.6rem 1.25rem;
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    text-align: center;
+  }}
+</style>
+</head>
+<body>
+<header>
+  <h1>{html_module.escape(site_title)}</h1>
+  <div class="updated">Index updated {html_module.escape(updated)} · {len(briefings)} briefing{'s' if len(briefings) != 1 else ''} on file</div>
+</header>
+<nav class="tab-strip" aria-label="Briefing archive">
+{tabs_html}
+</nav>
+<main class="frame-wrap">
+{body_inner}
+</main>
+<footer>Automated analytical commentary generated via Claude Code with web search. Not investment advice.</footer>
+<script>
+  document.querySelectorAll('.folder-tab').forEach(tab => {{
+    tab.addEventListener('click', () => {{
+      document.querySelectorAll('.folder-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const src = tab.getAttribute('data-src');
+      const frame = document.getElementById('briefing-frame');
+      if (frame && src) frame.src = src;
+    }});
+  }});
+</script>
+</body>
+</html>
+"""
+
+
+def publish_to_docs(config: dict, latest_html_path=None) -> bool:
+    """Mirror briefings into docs/, rebuild index.html, commit + push.
+
+    Backfills any HTML present in output_dir that isn't yet under docs/briefings/.
+    Returns True on success, False if any step failed (publishing is best-effort:
+    a failure here should never abort the briefing run).
+    """
+    repo_root = Path(__file__).parent
+    docs_dir = repo_root / "docs"
+    docs_briefings = docs_dir / "briefings"
+    docs_briefings.mkdir(parents=True, exist_ok=True)
+
+    output_dir = Path(config["output_dir"])
+    if not output_dir.is_absolute():
+        output_dir = (repo_root / output_dir).resolve()
+
+    # Mirror every HTML briefing in output_dir into docs/briefings/.
+    if output_dir.exists():
+        for src in output_dir.glob("briefing_*.html"):
+            dst = docs_briefings / src.name
+            if not dst.exists() or src.stat().st_mtime > dst.stat().st_mtime:
+                dst.write_bytes(src.read_bytes())
+
+    # Build the archive list newest-first.
+    briefings = []
+    for f in docs_briefings.glob("briefing_*.html"):
+        parsed = _parse_briefing_filename(f.name)
+        if parsed is None:
+            continue
+        dt, label = parsed
+        briefings.append({"filename": f.name, "datetime": dt, "label": label})
+    briefings.sort(key=lambda b: b["datetime"], reverse=True)
+
+    index_html = _build_index_html(config.get("site_title", "Iran Peace Talks — Market Briefings"), briefings)
+    (docs_dir / "index.html").write_text(index_html, encoding="utf-8")
+    # .nojekyll lets GitHub Pages serve files starting with underscores untouched.
+    (docs_dir / ".nojekyll").write_text("", encoding="utf-8")
+
+    print(f"  ✓ Published {len(briefings)} briefing(s) to docs/")
+
+    # Commit + push. Skip if there's nothing staged (e.g. index unchanged).
+    try:
+        subprocess.run(["git", "add", "docs"], cwd=repo_root, check=True)
+        diff = subprocess.run(
+            ["git", "diff", "--cached", "--quiet"],
+            cwd=repo_root,
+        )
+        if diff.returncode == 0:
+            print("  ─ No docs changes to commit.")
+            return True
+        msg_label = "briefing"
+        if latest_html_path is not None:
+            parsed = _parse_briefing_filename(Path(latest_html_path).name)
+            if parsed:
+                dt, label = parsed
+                msg_label = f"{label} {dt.strftime('%Y-%m-%d %H:%M')}"
+        commit_msg = f"Publish {msg_label}"
+        subprocess.run(
+            ["git", "commit", "-m", commit_msg],
+            cwd=repo_root,
+            check=True,
+        )
+        subprocess.run(["git", "push"], cwd=repo_root, check=True)
+        print(f"  ✓ Pushed: {commit_msg}")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"  ⚠ Publish git step failed: {e}. Briefing files were still written to docs/.")
+        return False
+    except FileNotFoundError:
+        print("  ⚠ `git` not found on PATH — skipping commit/push. Files were written to docs/.")
+        return False
+
+
 def run_briefing(config: dict, session_type: str = "pre-market"):
     """Execute a single briefing cycle."""
     et = ZoneInfo("America/New_York")
@@ -1244,6 +1501,13 @@ def run_briefing(config: dict, session_type: str = "pre-market"):
     # Email
     subject = f"Iran Briefing: {session_type.replace('-', ' ').title()} — {now.strftime('%b %d')}"
     send_email(config, subject, html)
+
+    # GitHub Pages publish (best-effort — failures don't abort the briefing).
+    if config.get("publish_enabled"):
+        try:
+            publish_to_docs(config, filepath)
+        except Exception as e:
+            print(f"  ⚠ Publish step raised an unexpected exception: {e}. Briefing itself succeeded.")
 
     print(f"  ✓ Briefing complete.\n")
     return True
@@ -1340,6 +1604,8 @@ Examples:
                         help="Record the date a peace agreement was reached")
     parser.add_argument("--reset-state", action="store_true",
                         help="Delete state.json so the next briefing starts from baseline hypotheses")
+    parser.add_argument("--publish", action="store_true",
+                        help="Re-publish docs/ from local briefings/ and push to GitHub Pages (no new briefing)")
     args = parser.parse_args()
 
     config = load_config()
@@ -1356,13 +1622,17 @@ Examples:
         config_path = Path(__file__).parent / "config.json"
         file_config = {}
         if config_path.exists():
-            with open(config_path) as f:
+            with open(config_path, encoding="utf-8") as f:
                 file_config = json.load(f)
         file_config["agreement_date"] = args.set_agreement
-        with open(config_path, "w") as f:
-            json.dump(file_config, f, indent=2)
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(file_config, f, indent=2, ensure_ascii=False)
         print(f"✓ Agreement date set to {args.set_agreement}")
         print(f"  Briefings will auto-stop 7 days after this date.")
+        return
+
+    if args.publish:
+        publish_to_docs(config)
         return
 
     if args.test_email:

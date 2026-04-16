@@ -1,4 +1,4 @@
-briefings/
+/briefings/
 state.json
 __pycache__/
 *.code-workspace

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iran Peace Talks — Midday Briefing — April 15, 2026 12:30 PM</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: Georgia, 'Times New Roman', serif;
+        background: #fafaf8;
+        color: #1a1a1a;
+        line-height: 1.6;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 24px 20px 48px;
+    }
+    .masthead {
+        border-bottom: 3px double #1a1a1a;
+        padding-bottom: 12px;
+        margin-bottom: 18px;
+    }
+    .masthead h1 { font-size: 22px; letter-spacing: -0.02em; }
+    .masthead .meta {
+        font-size: 13px;
+        color: #666;
+        font-style: italic;
+        margin-top: 4px;
+    }
+    .tab-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        border-bottom: 1px solid #ccc;
+        margin-bottom: 20px;
+    }
+    .tab-btn {
+        background: #f0ede8;
+        border: 1px solid #ccc;
+        border-bottom: none;
+        padding: 9px 16px;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        color: #555;
+        border-radius: 5px 5px 0 0;
+        margin-bottom: -1px;
+    }
+    .tab-btn:hover { background: #e8e4dc; color: #1a1a1a; }
+    .tab-btn.active {
+        background: #fafaf8;
+        color: #1a1a1a;
+        border-bottom: 1px solid #fafaf8;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .tab-panel h2 {
+        font-size: 18px;
+        margin-bottom: 14px;
+        color: #2c2c2c;
+        border-bottom: 1px solid #e0ddd8;
+        padding-bottom: 6px;
+    }
+    .tab-panel h2:not(:first-child) { margin-top: 26px; }
+    .tab-panel p { margin-bottom: 12px; font-size: 14px; }
+    .tab-panel a { color: #3a6ea5; text-decoration: none; }
+    .tab-panel a:hover { text-decoration: underline; }
+    strong { font-weight: 700; }
+
+    ul.headlines { list-style: none; padding: 0; }
+    ul.headlines li {
+        padding: 11px 14px;
+        margin-bottom: 8px;
+        background: #fff;
+        border-left: 3px solid #3a6ea5;
+        font-size: 14px;
+    }
+
+    .motives-narrative { margin-bottom: 14px; }
+    ol.motives { list-style: none; counter-reset: motive; padding: 0; }
+    ol.motives li {
+        counter-increment: motive;
+        padding: 12px 14px 12px 48px;
+        margin-bottom: 8px;
+        background: #fff;
+        border-left: 3px solid #8a5a3a;
+        font-size: 14px;
+        position: relative;
+    }
+    ol.motives li::before {
+        content: counter(motive);
+        position: absolute;
+        left: 14px;
+        top: 11px;
+        font-weight: 700;
+        font-size: 18px;
+        color: #8a5a3a;
+    }
+    .motive-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+    .motive-title .trend { color: #888; font-weight: 400; margin-left: 6px; }
+    .motive-rationale { font-size: 13px; color: #444; line-height: 1.55; }
+
+    .outcome-narrative { margin-bottom: 18px; font-size: 14px; }
+    details.hypothesis {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-left: 4px solid #3a6ea5;
+        border-radius: 4px;
+        margin-bottom: 12px;
+    }
+    details.hypothesis[open] { border-left-color: #1a4e8a; }
+    details.hypothesis > summary {
+        padding: 12px 16px;
+        font-size: 15px;
+        cursor: pointer;
+        list-style: none;
+        font-family: inherit;
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+    }
+    details.hypothesis > summary::-webkit-details-marker { display: none; }
+    details.hypothesis > summary::before {
+        content: "▸";
+        color: #888;
+        font-size: 12px;
+    }
+    details.hypothesis[open] > summary::before { content: "▾"; }
+    .hyp-id { font-weight: 700; color: #3a6ea5; min-width: 30px; }
+    .hyp-prob { font-weight: 700; color: #1a1a1a; min-width: 70px; }
+    .hyp-title { color: #2c2c2c; flex: 1; }
+    .hyp-body { padding: 4px 16px 14px; border-top: 1px solid #eee; }
+    .hyp-rationale { margin: 12px 0; font-size: 14px; color: #333; }
+
+    details.market-effects {
+        margin-top: 10px;
+        background: #f7f6f2;
+        border: 1px solid #e0ddd8;
+        border-radius: 4px;
+    }
+    details.market-effects > summary {
+        padding: 8px 12px;
+        font-weight: 700;
+        font-size: 13px;
+        cursor: pointer;
+        color: #555;
+        list-style: none;
+    }
+    details.market-effects > summary::-webkit-details-marker { display: none; }
+    details.market-effects > summary::before {
+        content: "▸ ";
+        color: #888;
+    }
+    details.market-effects[open] > summary::before { content: "▾ "; }
+    .effects-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+    .effects-table th, .effects-table td {
+        padding: 6px 10px;
+        text-align: left;
+        border-top: 1px solid #e0ddd8;
+        vertical-align: top;
+    }
+    .effects-table th { background: #e8e4dc; font-weight: 700; color: #444; }
+    .effects-table td.direction { font-weight: 700; white-space: nowrap; }
+    .effects-table td.direction.bullish { color: #1f7a3a; }
+    .effects-table td.direction.bearish { color: #a8352a; }
+    .effects-table td.direction.neutral { color: #888; }
+    .effects-table td.tickers { font-family: Consolas, 'Courier New', monospace; font-size: 11px; color: #444; }
+    .effects-table td.note { color: #555; }
+
+    .footer {
+        margin-top: 30px;
+        padding-top: 14px;
+        border-top: 1px solid #ddd;
+        font-size: 11px;
+        color: #999;
+        font-style: italic;
+    }
+    @media (prefers-color-scheme: dark) {
+        body { background: #1a1a1a; color: #e0e0e0; }
+        .masthead { border-color: #555; }
+        .masthead .meta { color: #999; }
+        .tab-bar { border-bottom-color: #444; }
+        .tab-btn { background: #252525; border-color: #444; color: #aaa; }
+        .tab-btn:hover { background: #303030; color: #e0e0e0; }
+        .tab-btn.active { background: #1a1a1a; color: #e0e0e0; border-bottom-color: #1a1a1a; }
+        .tab-panel h2 { color: #e0e0e0; border-bottom-color: #3a3a3a; }
+        ul.headlines li, ol.motives li, details.hypothesis { background: #252525; border-color: #444; }
+        details.hypothesis { border-left-color: #4a7eb5; }
+        details.hypothesis[open] { border-left-color: #6fa8dc; }
+        details.market-effects { background: #202020; border-color: #3a3a3a; }
+        .effects-table th { background: #303030; color: #ccc; }
+        .effects-table th, .effects-table td { border-color: #3a3a3a; }
+        .effects-table td.direction.bullish { color: #7dc88e; }
+        .effects-table td.direction.bearish { color: #e38a80; }
+        .hyp-id, .tab-panel a { color: #6fa8dc; }
+        .hyp-title, .hyp-prob { color: #e0e0e0; }
+        .motive-rationale, .hyp-rationale, .effects-table td.note { color: #ccc; }
+        .effects-table td.tickers { color: #bbb; }
+    }
+    </style>
+</head>
+<body>
+<div class="masthead">
+  <h1>Iran Peace Talks — Midday Briefing</h1>
+  <div class="meta">April 15, 2026 12:30 PM ET · Ceasefire expires 2026-04-21 · 5 day(s) out</div>
+</div>
+
+<div class="tab-bar">
+  <button type="button" class="tab-btn active" data-tab="tab-situation">Situation</button>
+  <button type="button" class="tab-btn" data-tab="tab-headlines">Recent Headlines</button>
+  <button type="button" class="tab-btn" data-tab="tab-motives">Motives</button>
+  <button type="button" class="tab-btn" data-tab="tab-outcomes">Probable Outcomes</button>
+  <button type="button" class="tab-btn" data-tab="tab-watch">Key Watch</button>
+  <button type="button" class="tab-btn" data-tab="tab-risks">Risk Alert</button>
+</div>
+
+<div class="tab-panel active" id="tab-situation">
+  <h2>Situation Update</h2>
+  <p>The dominant story at midday is a two-track dynamic that is pulling in opposite directions: intensifying diplomatic momentum toward Round 2 peace talks, and a sharp new Iranian escalation threat. Pakistan&#x27;s Field Marshal Asim Munir has landed in Tehran carrying what officials describe as &quot;a message from Washington&quot; to discuss logistics for a second round of negotiations. Trump told Fox Business this morning that the war is &quot;very close to over&quot; — his most optimistic public framing yet — while praising Munir and calling Islamabad the likely venue for resumed talks. This is the strongest signal yet that the previous Key Watch item (formal Round 2 announcement by end of Wednesday) is resolving positively, though no official date has been set as of this writing.</p>
+<p>Simultaneously, Iran has introduced a dangerous new escalation vector. Major General Ali Abdollahi, commander of Iran&#x27;s unified armed forces headquarters, warned this morning that Iran would shut down Red Sea shipping — in addition to the Persian Gulf and Sea of Oman — if the US naval blockade continues. This is a thinly veiled threat to activate Houthi proxies in Yemen and represents Iran&#x27;s attempt to create new leverage as the US blockade, now &quot;fully implemented&quot; per CENTCOM, has &quot;completely halted&quot; Iranian maritime trade within 36 hours. The Red Sea threat transforms the risk calculus: it could disrupt global trade far beyond the Gulf, threatening Suez-dependent shipping and European energy routes.</p>
+<p>Markets are reading the net signal as cautiously optimistic. The S&amp;P 500 has surpassed 7,000 for the first time since January 28, effectively erasing all Iran war losses year-to-date, buoyed by strong bank earnings (MS +5%, BAC +2.5%) and deal optimism. But Brent has ticked up ~1.6% to roughly $96.50, suggesting oil traders are less sanguine — the Red Sea threat and blockade friction are keeping a risk premium in place. The previous briefing&#x27;s Risk Alert on a blockade kinetic incident has not materialized but remains elevated with 10,000+ US servicemembers, 100+ aircraft, and 12+ warships operating in close proximity to Iranian forces. The Lebanon Risk Alert has partially materialized: Israel struck 200+ Hezbollah targets in the 24 hours since the historic Washington talks, killing a 19-year-old woman in Tyre via drone strike overnight, though this has not yet triggered an Iranian declaration that the ceasefire is void.</p>
+</div>
+<div class="tab-panel" id="tab-headlines">
+  <h2>Recent Headlines</h2>
+  <ul class='headlines'><li><strong>CNN</strong> — US blockade of Iranian ports fully implemented, CENTCOM says all Iranian sea trade halted within 36 hours. <a href="https://www.cnn.com/2026/04/15/world/live-news/iran-war-blockade-us-trump" target="_blank" rel="noopener">[link]</a></li><li><strong>NBC News</strong> — Iran&#x27;s military threatens to block Red Sea, Gulf, and Sea of Oman shipping if US naval blockade continues. <a href="https://www.nbcnews.com/world/iran/live-blog/live-updates-us-blockade-iran-hormuz-trump-peace-talks-rcna331890" target="_blank" rel="noopener">[link]</a></li><li><strong>Fox Business / MS.now</strong> — Trump says Iran war is &#x27;very close to over&#x27; in Wednesday morning interview. <a href="https://www.ms.now/liveblog/iran-war-news-today-trump-us-april-15-2026" target="_blank" rel="noopener">[link]</a></li><li><strong>Al Jazeera</strong> — Pakistan&#x27;s Field Marshal Munir arrives in Tehran to discuss second round of US-Iran negotiations. <a href="https://www.aljazeera.com/news/liveblog/2026/4/15/iran-war-live-trump-hints-at-second-round-of-talks-israel-pounds-lebanon" target="_blank" rel="noopener">[link]</a></li><li><strong>PBS NewsHour</strong> — Pakistan proposes hosting second round of US-Iran talks as standoff deepens. <a href="https://www.pbs.org/newshour/world/pakistan-proposes-second-round-of-u-s-iran-talks-as-standoff-deepens" target="_blank" rel="noopener">[link]</a></li><li><strong>Washington Times</strong> — Israeli airstrikes hit southern Lebanon including Tyre one day after historic Washington talks. <a href="https://www.washingtontimes.com/news/2026/apr/15/new-israeli-airstrikes-hit-southern-lebanon-day-historic-talks/" target="_blank" rel="noopener">[link]</a></li><li><strong>TheStreet</strong> — S&amp;P 500 surpasses 7,000 for first time since January, nearing fresh all-time high amid Iran deal optimism and bank earnings. <a href="https://www.thestreet.com/latest-news/stock-market-today-apr-15-2026-futures-flat-sp-500-close-to-all-time-high" target="_blank" rel="noopener">[link]</a></li><li><strong>Rigzone</strong> — EIA raises 2026 Brent crude oil price forecast to $96 per barrel. <a href="https://www.rigzone.com/news/eia_boosts_2026_brent_oil_price_projection_to_96-15-apr-2026-183451-article/" target="_blank" rel="noopener">[link]</a></li><li><strong>Al Jazeera</strong> — Anger in Lebanon as Israel launches 200+ strikes on Hezbollah targets despite ongoing diplomatic push. <a href="https://www.aljazeera.com/news/2026/4/15/anger-in-lebanon-as-israel-launches-deadly-strikes-despite-diplomatic-drive" target="_blank" rel="noopener">[link]</a></li><li><strong>NPR/AP</strong> — Trump praises Pakistan&#x27;s Munir as &#x27;fantastic,&#x27; calls Islamabad the likely venue for resumed US-Iran talks. <a href="https://news.wjct.org/national-news/2026-04-15/trump-says-iran-talks-could-resume-in-days-as-u-s-military-blocks-iranian-ports" target="_blank" rel="noopener">[link]</a></li></ul>
+</div>
+<div class="tab-panel" id="tab-motives">
+  <h2>US / Trump Administration Motives</h2>
+  <div class="motives-narrative"><p>US motives are sharpening around a coercive-diplomacy-plus-legacy narrative. The blockade achieving &quot;complete&quot; implementation within 36 hours was operationally impressive and gives the administration a powerful demonstration of military leverage — classic strategic opportunism, still the primary driver. But the most notable shift since last night is the surge of legacy-building rhetoric: Trump&#x27;s &quot;very close to over&quot; framing on Fox Business is not the language of a president planning to grind out a long siege. He wants a deal, and he wants credit for it before the midterm clock ticks further. This moves Legacy up to the #2 slot, edging ahead of Israeli alignment. The Israel-Lebanon track continues under US auspices, with the next round in a few weeks in Washington, but the Iran bilateral is clearly the higher-priority lane for the White House right now. Nuclear nonproliferation remains a stated demand (Vance cited the 20-year enrichment ban as the key sticking point) but the 20-year-vs-5-year gap signals this will either be fudged or deferred. Oil/gas remains background noise: Brent at $96 is high but falling from war peaks, and the S&amp;P recovery mutes domestic economic pressure.</p></div>
+<ol class='motives'>
+<li><div class="motive-title">Strategic opportunism — exploiting Iran&#x27;s weakness <span class="trend">→</span></div><div class="motive-rationale">The blockade achieving &#x27;complete&#x27; economic isolation of Iran within 36 hours is the most dramatic demonstration of US coercive leverage yet. Trump is using maximum pressure to force concessions while keeping the diplomatic door open through Pakistan. The simultaneous military squeeze and talk signals are textbook coercive diplomacy at its most aggressive.</div></li>
+<li><div class="motive-title">Legacy &amp; strongman self-image <span class="trend">↑</span></div><div class="motive-rationale">Trump&#x27;s &#x27;very close to over&#x27; statement on Fox Business is legacy language, not operational assessment. The midterm clock and desire to present a dealmaker image are actively shaping the negotiating timeline. The push for Round 2 this week — before the April 21 ceasefire expiry — reflects urgency driven by the desire to claim a historic win. Moved up from #3.</div></li>
+<li><div class="motive-title">Israeli alignment / Netanyahu partnership <span class="trend">↓</span></div><div class="motive-rationale">The US continues hosting the Israel-Lebanon diplomatic track in Washington, and Israel&#x27;s security cabinet discussed Lebanon developments today. But the Iran bilateral is clearly the White House&#x27;s higher-priority lane right now. Israel&#x27;s 200+ strikes on Lebanon since the Washington talks proceed without public US objection, confirming close coordination. Moved down from #2 as the Iran track takes center stage.</div></li>
+<li><div class="motive-title">Nuclear nonproliferation <span class="trend">→</span></div><div class="motive-rationale">Vance identified the 20-year enrichment ban as the primary breakdown point at Islamabad. But the yawning gap with Iran&#x27;s 5-year counter-offer suggests this demand is either a maximalist opening position or will be deferred in a narrow deal. IAEA remains locked out for 8+ months, making verification impossible in the near term regardless.</div></li>
+<li><div class="motive-title">Energy/oil leverage &amp; domestic gas prices <span class="trend">↓</span></div><div class="motive-rationale">Brent at ~$96 is elevated but declining from war peaks. The S&amp;P reclaiming 7,000 and erasing Iran war losses reduces domestic economic pressure on the administration. The EIA&#x27;s new $96 Brent forecast suggests markets expect prices to stabilize at current levels, not spike further. This motive is receding as the market rally provides political cover.</div></li>
+</ol>
+  <h2>Iran Motives</h2>
+  <div class="motives-narrative"><p>Iran&#x27;s motive structure is under maximum stress. The blockade&#x27;s 36-hour annihilation of Iranian sea trade is an existential shock to an already-crippled economy, pushing regime survival further into crisis territory. The Red Sea shipping threat — Iran&#x27;s most significant new move today — reveals Tehran&#x27;s strategic desperation: having lost effective Hormuz leverage (the US blockade has flipped the pressure), Iran is reaching for a wider escalation card via Houthi proxies. This is simultaneously a sign of weakness (Iran cannot counter the blockade directly) and danger (the Red Sea threat, if activated, would globalize the conflict). Araghchi&#x27;s calls with Qatar&#x27;s foreign minister and Russia&#x27;s Lavrov, accusing the US of &quot;provocative actions with dangerous consequences,&quot; signal Iran is trying to internationalize its grievance and build diplomatic counter-pressure. The Axis of Resistance motive is under acute strain as Israel&#x27;s 200+ strikes on Hezbollah positions continue unabated despite the Washington talks. Regime survival and the need for economic relief are converging to make Iran more likely to accept some form of transactional deal — but the Red Sea threat shows Tehran still believes it has escalation cards to play before capitulating.</p></div>
+<ol class='motives'>
+<li><div class="motive-title">Regime survival (existential imperative) <span class="trend">↑</span></div><div class="motive-rationale">The blockade&#x27;s 36-hour annihilation of Iranian sea trade is an existential economic shock layered on top of the worst domestic legitimacy crisis since 1979. Iran&#x27;s economy was already reeling from the air campaign; complete maritime isolation accelerates the timeline for potential regime destabilization. Every day the blockade continues, internal pressure mounts. This is now the overwhelming driver of Iranian behavior.</div></li>
+<li><div class="motive-title">Economic leverage via Hormuz/Red Sea <span class="trend">↓</span></div><div class="motive-rationale">Iran&#x27;s Hormuz leverage has been effectively neutralized by the US blockade — the US flipped the script from &#x27;Iran blocks the Strait&#x27; to &#x27;US blocks Iran.&#x27; Today&#x27;s Red Sea threat is Iran&#x27;s attempt to create a new leverage card by threatening Houthi proxy attacks on global shipping. This is a desperation play that signals Iran&#x27;s primary bargaining chip is eroding but also shows Tehran still believes it has escalation options.</div></li>
+<li><div class="motive-title">Deterrence restoration <span class="trend">→</span></div><div class="motive-rationale">With conventional military severely degraded and the blockade demonstrating Iran&#x27;s naval vulnerability, deterrence through military capability is essentially gone. Iran&#x27;s Red Sea threat and nuclear hedging are attempts to restore deterrence through asymmetric means. The diplomatic track itself is a form of deterrence restoration — showing Iran can negotiate rather than simply be dictated to.</div></li>
+<li><div class="motive-title">Preserving Axis of Resistance / proxy network <span class="trend">↓</span></div><div class="motive-rationale">Israel&#x27;s 200+ strikes on Hezbollah in the past 24 hours, despite the Washington talks, directly degrade Iran&#x27;s most important proxy. The Red Sea threat is partly an attempt to demonstrate the Axis of Resistance&#x27;s continuing reach via Yemen&#x27;s Houthis. But the Lebanon track is being negotiated without meaningful Iranian input, reducing Tehran&#x27;s ability to protect its proxy equities.</div></li>
+<li><div class="motive-title">Rally-the-flag nationalism vs. domestic dissent <span class="trend">↓</span></div><div class="motive-rationale">The blockade&#x27;s economic chokehold makes rally-the-flag messaging increasingly hollow for ordinary Iranians facing import shortages. The regime&#x27;s 2025-26 crackdown killed 7,000+ and the combination of war fatigue, blockade hardship, and protest memory is eroding nationalist solidarity. Araghchi&#x27;s calls with Lavrov and Qatar&#x27;s FM are partly aimed at maintaining international sympathy to offset domestic discontent.</div></li>
+</ol>
+</div>
+<div class="tab-panel" id="tab-outcomes">
+  <h2>Probable Outcomes</h2>
+  <div class="outcome-narrative"><p>The net effect of today&#x27;s developments is a modest tilt toward diplomatic resolution (favoring H1 and H3) offset by Iran&#x27;s Red Sea escalation threat (keeping H2 from declining too far). H1 rises 2 points to 40% as Munir&#x27;s Tehran visit and Trump&#x27;s optimism bring Round 2 talks closer to materializing — though without a formal announcement yet, the full 5-8 point jump flagged in last night&#x27;s Key Watch is premature. H3 (the narrow Hormuz-for-sanctions deal) is the biggest relative mover, climbing 3 points to 19%: the blockade&#x27;s devastating speed makes a transactional Hormuz reopening increasingly attractive to Tehran, and Trump&#x27;s &quot;very close to over&quot; rhetoric suggests he&#x27;d accept a narrow win. H2 declines 3 points to 25% — still elevated, because the Red Sea threat is a genuine new escalation path, but the diplomatic momentum is outpacing the escalation signals for now. H4 holds at 11%; the massive enrichment gap (20 vs 5 years) actually creates space for deliberate ambiguity, but neither side seems to be positioning for a face-saving fudge yet. H5 drops to 5% — the enrichment chasm confirms this remains aspirational.</p>
+<p>No hypotheses are being retired or introduced this session. The existing five still capture the scenario space well. The Red Sea threat could eventually justify a new hypothesis (e.g., &quot;Horizontal Escalation — Conflict Expands Beyond Gulf&quot;) if Iran actually activates Houthi proxies, but for now it functions as a bargaining threat within the existing H2 framework.</p></div>
+<details class="hypothesis" open><summary><span class="hyp-id">H1</span><span class="hyp-prob">40% ↑</span><span class="hyp-title">The Can-Kick — Ceasefire Extension + Vague Framework</span></summary><div class="hyp-body"><p class="hyp-rationale">Diplomatic momentum has strengthened since last night. Pakistan&#x27;s Munir is in Tehran discussing Round 2 logistics, Trump is publicly framing the war as &#x27;very close to over,&#x27; and both sides are signaling willingness to return to the table. The most likely near-term outcome remains a ceasefire extension with a vague framework to buy more time, though the massive enrichment gap (20 vs 5 years) means any framework will lack substance. The blockade creates urgency for Iran to agree to something before April 21.</p><details class="market-effects"><summary>Market Effects</summary><table class="effects-table"><thead><tr><th>Sector</th><th>Direction</th><th>Conviction</th><th>Tickers</th><th>Note</th></tr></thead><tbody><tr><td class='sector'>Energy (XLE)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>moderate</td><td class='tickers'>XOM, CVX, COP, OXY</td><td class='note'>Ceasefire extension + partial Hormuz reopening would drop Brent 8-15% from current ~$96 levels. XLE gives back recent war premium gains.</td></tr><tr><td class='sector'>Defense (ITA)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>low</td><td class='tickers'>LMT, RTX, NOC, GD, LHX</td><td class='note'>Reduced escalation risk softens near-term defense demand narrative, but replenishment cycle keeps floor under sector.</td></tr><tr><td class='sector'>Airlines (JETS)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>UAL, DAL, AAL, LUV</td><td class='note'>Jet fuel relief from $4.88/gal levels would be transformative. Airlines are the single highest-beta peace trade.</td></tr><tr><td class='sector'>Tech (QQQ)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>moderate</td><td class='tickers'>AAPL, MSFT, NVDA, META, AVGO</td><td class='note'>Risk-on rotation and lower discount rates from reduced geopolitical premium. Nasdaq already on 10-day winning streak.</td></tr><tr><td class='sector'>Consumer Discretionary (XLY)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>moderate</td><td class='tickers'>AMZN, TSLA, HD, NKE</td><td class='note'>Lower fuel costs benefit consumer spending power. Reduced war anxiety supports discretionary purchases.</td></tr><tr><td class='sector'>Financials (XLF)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>moderate</td><td class='tickers'>JPM, BAC, MS, GS, WFC</td><td class='note'>Strong earnings season (MS record revenue, BAC beat) plus risk-on sentiment. Reduced tail risk improves loan book outlook.</td></tr><tr><td class='sector'>Gold (GLD/GDX)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>moderate</td><td class='tickers'>NEM, GOLD, AEM, GLD</td><td class='note'>Safe-haven bid unwinds as geopolitical premium fades. Gold at $4,850 has significant downside if peace holds.</td></tr><tr><td class='sector'>Industrials (XLI)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>low</td><td class='tickers'>CAT, DE, GE, HON</td><td class='note'>Lower energy input costs help margins. But reconstruction demand is speculative and unlikely under a vague framework.</td></tr><tr><td class='sector'>Utilities (XLU)</td><td class='direction neutral'>NEUTRAL</td><td class='conviction'>low</td><td class='tickers'>NEE, DUK, SO, AEP</td><td class='note'>Limited direct impact. Lower energy costs modestly help input economics but risk-on rotation away from defensives is a headwind.</td></tr><tr><td class='sector'>Real Estate (XLRE)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>low</td><td class='tickers'>PLD, AMT, EQIX, SPG</td><td class='note'>Reduced inflation expectations from lower oil support rate-sensitive sectors. Modest tailwind.</td></tr><tr><td class='sector'>Volatility (VIX/VXX/UVXY)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>moderate</td><td class='tickers'>VIX, VXX, UVXY</td><td class='note'>VIX compresses toward 15-16 range as ceasefire extension removes near-term tail risk. Vol sellers benefit.</td></tr></tbody></table></details></div></details>
+<details class="hypothesis" open><summary><span class="hyp-id">H2</span><span class="hyp-prob">25% ↓</span><span class="hyp-title">Back to the Brink — Talks Collapse, Ceasefire Unravels</span></summary><div class="hyp-body"><p class="hyp-rationale">H2 declines 3 points as the diplomatic momentum toward Round 2 outweighs escalation signals. However, Iran&#x27;s Red Sea shipping threat is a significant new risk factor that prevents a larger decline. The blockade&#x27;s provocative nature during a ceasefire, combined with 200+ Israeli strikes on Lebanon, creates multiple escalation tripwires. If Munir leaves Tehran without a deal on Round 2, or if Iran activates Houthi proxies, this scenario jumps back to 30%+ overnight. The 6-day countdown to ceasefire expiry concentrates risk.</p><details class="market-effects"><summary>Market Effects</summary><table class="effects-table"><thead><tr><th>Sector</th><th>Direction</th><th>Conviction</th><th>Tickers</th><th>Note</th></tr></thead><tbody><tr><td class='sector'>Energy (XLE)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>XOM, CVX, COP, OXY, HAL, SLB</td><td class='note'>Talks collapse + Red Sea disruption could push Brent to $110-125. XLE surges 15-25%. Energy is the primary H2 beneficiary.</td></tr><tr><td class='sector'>Defense (ITA)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>LMT, RTX, NOC, GD, LHX</td><td class='note'>Resumed hostilities trigger new weapons orders and replenishment urgency. Defense stocks rally 10-15%.</td></tr><tr><td class='sector'>Airlines (JETS)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>high</td><td class='tickers'>UAL, DAL, AAL, LUV</td><td class='note'>Jet fuel spike above $5/gal combined with Middle East route disruptions devastates airline margins. Worst-case sector.</td></tr><tr><td class='sector'>Tech (QQQ)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>high</td><td class='tickers'>AAPL, MSFT, NVDA, META, AVGO</td><td class='note'>Risk-off rotation hammers growth names. Helium supply crisis from Gulf disruptions threatens semiconductor manufacturing.</td></tr><tr><td class='sector'>Consumer Discretionary (XLY)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>high</td><td class='tickers'>AMZN, TSLA, HD, NKE</td><td class='note'>Energy shock crushes consumer spending. Shipping cost spikes from Red Sea disruption hit retail supply chains.</td></tr><tr><td class='sector'>Financials (XLF)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>moderate</td><td class='tickers'>JPM, BAC, MS, GS</td><td class='note'>Credit risk rises, loan loss provisions increase. But trading revenues may benefit from volatility.</td></tr><tr><td class='sector'>Gold (GLD/GDX)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>NEM, GOLD, AEM, GLD</td><td class='note'>Safe-haven surge pushes gold toward $5,000+. Miners rally 20-30%. Gold is the primary H2 hedge.</td></tr><tr><td class='sector'>Industrials (XLI)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>moderate</td><td class='tickers'>CAT, DE, GE, HON</td><td class='note'>Energy cost spike and supply chain disruption hit industrial margins. Global trade contraction risk.</td></tr><tr><td class='sector'>Utilities (XLU)</td><td class='direction neutral'>NEUTRAL</td><td class='conviction'>low</td><td class='tickers'>NEE, DUK, SO, AEP</td><td class='note'>Defensive rotation provides some support but higher natural gas costs pressure margins. Mixed.</td></tr><tr><td class='sector'>Real Estate (XLRE)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>moderate</td><td class='tickers'>PLD, AMT, EQIX, SPG</td><td class='note'>Inflation spike from energy costs pushes rate expectations higher, pressuring rate-sensitive REITs.</td></tr><tr><td class='sector'>Volatility (VIX/VXX/UVXY)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>VIX, VXX, UVXY</td><td class='note'>VIX spikes to 30-40 range. Conflict resumption + Red Sea disruption would be the highest-vol event since the war began.</td></tr></tbody></table></details></div></details>
+<details class="hypothesis" open><summary><span class="hyp-id">H3</span><span class="hyp-prob">19% ↑</span><span class="hyp-title">The Half-Loaf — Narrow Hormuz-for-Sanctions Deal</span></summary><div class="hyp-body"><p class="hyp-rationale">H3 is the biggest relative gainer this session (+3 points). The blockade&#x27;s speed and completeness — &#x27;completely halted&#x27; Iranian sea trade in 36 hours — dramatically increased Iran&#x27;s pain and the urgency of relief. Trump&#x27;s &#x27;very close to over&#x27; framing suggests he&#x27;d accept a narrow deal on Hormuz reopening in exchange for targeted sanctions relief, deferring the nuclear question. The 20-year-vs-5-year enrichment gap actually supports H3: the nuclear issue is too far apart for resolution, making a narrow non-nuclear deal the pragmatic alternative. Iran&#x27;s Red Sea threat may be a bargaining chip aimed at improving terms in exactly this kind of transaction.</p><details class="market-effects"><summary>Market Effects</summary><table class="effects-table"><thead><tr><th>Sector</th><th>Direction</th><th>Conviction</th><th>Tickers</th><th>Note</th></tr></thead><tbody><tr><td class='sector'>Energy (XLE)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>high</td><td class='tickers'>XOM, CVX, COP, OXY</td><td class='note'>Hormuz fully reopening drops Brent 20-30% toward $67-77. Energy sector sees largest drawdown as war premium evaporates.</td></tr><tr><td class='sector'>Defense (ITA)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>moderate</td><td class='tickers'>LMT, RTX, NOC, GD</td><td class='note'>Narrow deal signals de-escalation, reducing near-term procurement urgency. But long-term replenishment cycle provides floor.</td></tr><tr><td class='sector'>Airlines (JETS)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>UAL, DAL, AAL, LUV, JBLU</td><td class='note'>Jet fuel collapse from Hormuz reopening is the most transformative single event for airline margins. JETS could rally 15-25%.</td></tr><tr><td class='sector'>Tech (QQQ)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>AAPL, MSFT, NVDA, META, AVGO, ASML</td><td class='note'>Risk-on rally + helium supply restoration supports semiconductor supply chain. S&amp;P pushes well past all-time high.</td></tr><tr><td class='sector'>Consumer Discretionary (XLY)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>AMZN, TSLA, HD, NKE, SBUX</td><td class='note'>Energy relief directly boosts consumer purchasing power. Shipping cost normalization helps retail supply chains.</td></tr><tr><td class='sector'>Financials (XLF)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>moderate</td><td class='tickers'>JPM, BAC, MS, GS, WFC</td><td class='note'>Reduced geopolitical risk improves credit outlook. Rate normalization from lower inflation expectations helps NIMs.</td></tr><tr><td class='sector'>Gold (GLD/GDX)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>high</td><td class='tickers'>NEM, GOLD, AEM, GLD</td><td class='note'>Major safe-haven unwind. Gold could drop 8-15% from $4,850 levels as geopolitical premium evaporates.</td></tr><tr><td class='sector'>Industrials (XLI)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>moderate</td><td class='tickers'>CAT, DE, GE, HON, MMM</td><td class='note'>Lower energy input costs and improved global trade outlook. Reconstruction spending speculative but possible.</td></tr><tr><td class='sector'>Utilities (XLU)</td><td class='direction neutral'>NEUTRAL</td><td class='conviction'>low</td><td class='tickers'>NEE, DUK, SO, AEP</td><td class='note'>Lower natural gas costs help input economics, but risk-on rotation pulls capital away from defensives.</td></tr><tr><td class='sector'>Real Estate (XLRE)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>moderate</td><td class='tickers'>PLD, AMT, EQIX, SPG</td><td class='note'>Inflation normalization from energy price collapse supports lower rate expectations, benefiting rate-sensitive REITs.</td></tr><tr><td class='sector'>Volatility (VIX/VXX/UVXY)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>high</td><td class='tickers'>VIX, VXX, UVXY</td><td class='note'>VIX compresses to 13-15 range as major geopolitical tail risk removed. Vol crush benefits short-vol strategies.</td></tr></tbody></table></details></div></details>
+<details class="hypothesis" open><summary><span class="hyp-id">H4</span><span class="hyp-prob">11% →</span><span class="hyp-title">The Potemkin Deal — Symbolic Agreement, Contradictory Interpretations</span></summary><div class="hyp-body"><p class="hyp-rationale">H4 holds steady at 11%. The 20-year-vs-5-year enrichment gap is actually the kind of chasm that produces Potemkin deals — both sides agree to &#x27;enrichment limitations&#x27; without specifying duration, then claim different interpretations domestically. However, the current rhetoric is too maximalist on both sides for creative ambiguity to emerge in Round 2. This scenario becomes more likely if Round 2 talks go to the wire on April 20 and deadline pressure forces a hastily drafted text. Markets would initially rally then reverse within 48-72 hours as contradictions surface — the worst scenario for investor confidence.</p><details class="market-effects"><summary>Market Effects</summary><table class="effects-table"><thead><tr><th>Sector</th><th>Direction</th><th>Conviction</th><th>Tickers</th><th>Note</th></tr></thead><tbody><tr><td class='sector'>Energy (XLE)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>moderate</td><td class='tickers'>XOM, CVX, COP, OXY</td><td class='note'>Initial oil drop 10-18% on deal headlines, then partial rebound as markets realize agreement is hollow. Whipsaw risk.</td></tr><tr><td class='sector'>Defense (ITA)</td><td class='direction neutral'>NEUTRAL</td><td class='conviction'>low</td><td class='tickers'>LMT, RTX, NOC, GD</td><td class='note'>Initial dip then recovery as markets realize underlying tensions remain. Net flat within a week.</td></tr><tr><td class='sector'>Airlines (JETS)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>low</td><td class='tickers'>UAL, DAL, AAL, LUV</td><td class='note'>Initial rally on oil dip, but gains fade as deal&#x27;s fragility becomes apparent. Whipsaw worst-case for options sellers.</td></tr><tr><td class='sector'>Tech (QQQ)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>low</td><td class='tickers'>AAPL, MSFT, NVDA, META</td><td class='note'>Initial risk-on rally then fade. Extreme vol makes this the worst scenario for systematic/momentum strategies.</td></tr><tr><td class='sector'>Consumer Discretionary (XLY)</td><td class='direction neutral'>NEUTRAL</td><td class='conviction'>low</td><td class='tickers'>AMZN, TSLA, HD</td><td class='note'>Consumer confidence whipsaws with headlines. Net neutral over 2-week horizon as deal&#x27;s contradictions surface.</td></tr><tr><td class='sector'>Financials (XLF)</td><td class='direction neutral'>NEUTRAL</td><td class='conviction'>low</td><td class='tickers'>JPM, BAC, MS, GS</td><td class='note'>Trading desks benefit from volatility but credit uncertainty offsets. Net neutral with elevated dispersion.</td></tr><tr><td class='sector'>Gold (GLD/GDX)</td><td class='direction neutral'>NEUTRAL</td><td class='conviction'>low</td><td class='tickers'>NEM, GOLD, AEM, GLD</td><td class='note'>Initial dip on deal, then recovery as markets recognize fragility. Net flat but with extreme intraday swings.</td></tr><tr><td class='sector'>Industrials (XLI)</td><td class='direction neutral'>NEUTRAL</td><td class='conviction'>low</td><td class='tickers'>CAT, DE, GE, HON</td><td class='note'>Initial optimism fades. Ambiguous deal creates planning uncertainty for industrial capex.</td></tr><tr><td class='sector'>Utilities (XLU)</td><td class='direction neutral'>NEUTRAL</td><td class='conviction'>low</td><td class='tickers'>NEE, DUK, SO, AEP</td><td class='note'>Minimal direct impact. Defensive positioning benefits if deal unravels and risk-off returns.</td></tr><tr><td class='sector'>Real Estate (XLRE)</td><td class='direction neutral'>NEUTRAL</td><td class='conviction'>low</td><td class='tickers'>PLD, AMT, EQIX, SPG</td><td class='note'>Rate expectations whipsaw with oil and inflation expectations. Net flat with elevated uncertainty.</td></tr><tr><td class='sector'>Volatility (VIX/VXX/UVXY)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>VIX, VXX, UVXY</td><td class='note'>Extreme vol both directions. VIX compresses initially then expands as contradictions emerge. Worst scenario for vol sellers.</td></tr></tbody></table></details></div></details>
+<details class="hypothesis" open><summary><span class="hyp-id">H5</span><span class="hyp-prob">5% ↓</span><span class="hyp-title">The Grand Bargain — Comprehensive Peace Deal</span></summary><div class="hyp-body"><p class="hyp-rationale">H5 drops another 2 points to 5% — approaching retirement threshold but not there yet. The Islamabad Talks revealed a massive enrichment gap (20 vs 5 years), no agreement on Hormuz verification mechanisms, and no framework for Lebanon/Hezbollah integration. A comprehensive deal would require breakthroughs on all three simultaneously. Trump&#x27;s &#x27;very close to over&#x27; rhetoric is aspirational, not a reflection of negotiating reality. H5 survives only because the pressure dynamics could theoretically force a dramatic concession from Iran if the blockade becomes truly unbearable — but this remains a low-probability tail scenario.</p><details class="market-effects"><summary>Market Effects</summary><table class="effects-table"><thead><tr><th>Sector</th><th>Direction</th><th>Conviction</th><th>Tickers</th><th>Note</th></tr></thead><tbody><tr><td class='sector'>Energy (XLE)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>high</td><td class='tickers'>XOM, CVX, COP, OXY, HAL, SLB</td><td class='note'>Comprehensive deal collapses oil 30-40%. Brent toward $55-65. Energy sector faces multi-year repricing.</td></tr><tr><td class='sector'>Defense (ITA)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>high</td><td class='tickers'>LMT, RTX, NOC, GD, LHX</td><td class='note'>Comprehensive peace removes the primary driver of recent defense outperformance. ITA corrects 15-20%.</td></tr><tr><td class='sector'>Airlines (JETS)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>UAL, DAL, AAL, LUV, JBLU</td><td class='note'>Transformative fuel cost relief. New Middle East routes reopen. Airlines are the single biggest beneficiary of H5.</td></tr><tr><td class='sector'>Tech (QQQ)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>AAPL, MSFT, NVDA, META, AVGO, ASML</td><td class='note'>Massive risk-on rally. Semiconductor supply chains fully restored. S&amp;P pushes 7,500+.</td></tr><tr><td class='sector'>Consumer Discretionary (XLY)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>AMZN, TSLA, HD, NKE, SBUX</td><td class='note'>Energy cost collapse supercharges consumer spending. Global trade normalization benefits retail supply chains.</td></tr><tr><td class='sector'>Financials (XLF)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>JPM, BAC, MS, GS, WFC</td><td class='note'>Credit risk plummets, deal-making resumes, EM exposure becomes an asset. Comprehensive upside for sector.</td></tr><tr><td class='sector'>Gold (GLD/GDX)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>high</td><td class='tickers'>NEM, GOLD, AEM, GLD</td><td class='note'>Massive safe-haven unwind. Gold drops 15-25% as geopolitical premium fully evaporates.</td></tr><tr><td class='sector'>Industrials (XLI)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>high</td><td class='tickers'>CAT, DE, GE, HON, MMM</td><td class='note'>Reconstruction spending ($100B+ potential), restored global trade, and lower energy costs all benefit industrials.</td></tr><tr><td class='sector'>Utilities (XLU)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>low</td><td class='tickers'>NEE, DUK, SO, AEP</td><td class='note'>Risk-on rotation pulls capital from defensives. Lower natural gas costs help margins but underperformance likely.</td></tr><tr><td class='sector'>Real Estate (XLRE)</td><td class='direction bullish'>BULLISH</td><td class='conviction'>moderate</td><td class='tickers'>PLD, AMT, EQIX, SPG</td><td class='note'>Inflation normalization and rate compression benefit REITs significantly. Industrial REIT demand rises on trade recovery.</td></tr><tr><td class='sector'>Volatility (VIX/VXX/UVXY)</td><td class='direction bearish'>BEARISH</td><td class='conviction'>high</td><td class='tickers'>VIX, VXX, UVXY</td><td class='note'>VIX collapses to 11-13. Vol crush is extreme and sustained. Best environment for selling premium.</td></tr></tbody></table></details></div></details>
+</div>
+<div class="tab-panel" id="tab-watch">
+  <h2>Key Watch</h2>
+  <p>Whether a formal date and venue for Round 2 US-Iran talks is confirmed before the April 21 ceasefire expiry — and whether Iran takes any concrete action on its Red Sea shipping threat (Houthi activation, specific vessel targeting) in the next 24-48 hours. Munir is in Tehran now; if he departs with a confirmed date, H1 jumps 5+ points and oil extends its decline below $95. If Iran moves on the Red Sea threat, H2 jumps to 30%+, Brent spikes above $100, and the S&amp;P gives back its 7,000 breakout.</p>
+</div>
+<div class="tab-panel" id="tab-risks">
+  <h2>Risk Alert</h2>
+  <p><strong>Tail Risk #1 (ELEVATED): Red Sea activation.</strong> Iran&#x27;s military threat to block Red Sea shipping is the most dangerous new variable. Unlike the Hormuz card (already being countered), a Houthi campaign against Red Sea tankers would: (a) bypass the US blockade&#x27;s geographic focus, (b) threaten European energy supplies via Suez, (c) spike global shipping insurance costs, and (d) potentially draw in European naval forces. If activated, Brent could spike 15-20% intraday; VIX blows through 25. This would likely force the S&amp;P below 6,800 and make H2 the dominant scenario overnight.</p>
+<p><strong>Tail Risk #2 (PERSISTENT): Blockade kinetic incident.</strong> With 10,000+ US servicemembers operating within miles of Iranian forces, the probability of an accidental or deliberate confrontation remains non-trivial. Six vessels were warned off in the first 24 hours. An IRGC fast-boat rush or mine detonation would collapse the diplomatic track instantly.</p>
+<p><strong>Tail Risk #3 (NEW): Israel-Lebanon talks collapse + major escalation.</strong> Israel struck 200+ Hezbollah targets in the 24 hours since the Washington talks while rejecting a Lebanon ceasefire and demanding Hezbollah disarmament. If the Lebanon track collapses and Israel launches another Black Wednesday-scale operation, Iran could declare the broader ceasefire void, collapsing both diplomatic tracks simultaneously.</p>
+<p><strong>Tail Risk #4 (PERSISTENT): Nuclear breakout signal.</strong> IAEA has had no access to Iranian enrichment inventories for 8+ months. Breakout time estimated at 1-3 months. Any intelligence leak suggesting movement toward 90% enrichment transforms all scenarios.</p>
+</div>
+
+<div class="footer">
+  Automated analytical commentary generated via Claude Code with web search.
+  Not investment advice. Sources paraphrased to respect copyright. Consult a
+  licensed financial advisor before making investment decisions.
+</div>
+
+<script>
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

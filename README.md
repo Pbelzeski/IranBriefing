@@ -36,6 +36,7 @@ This project was built and tested on **Windows 11** using the **Claude Code CLI*
 | `--set-agreement` and 7-day auto-stop logic | ✅ Tested on Windows (auto-stop not yet observed in the wild) |
 | Built-in scheduler (`--schedule`) | ✅ Tested on Windows |
 | Windows Task Scheduler (recommended production path) | ✅ Tested |
+| GitHub Pages auto-publish (`publish_enabled`, `--publish`) | ✅ Tested on Windows |
 | Email delivery (`email_enabled`, SMTP, `--test-email`) | ⚠️ **Untested.** SMTP code path has never been exercised. Gmail app password setup and the provider table are best-effort guidance — expect to debug. |
 | macOS `nohup` background run | ⚠️ **Untested.** Shell syntax should be correct but has not been run on a Mac. |
 | macOS Launch Agent (`launchd` plist) | ⚠️ **Untested.** The plist has not been loaded on a real machine. Verify paths and the `launchctl load` flow yourself before relying on it. |
@@ -118,6 +119,43 @@ This means hypotheses, motives, and the ceasefire timeline drift over time rathe
 ```bash
 python iran_briefing.py --reset-state
 ```
+
+---
+
+## Publishing to GitHub Pages (Optional)
+
+If `publish_enabled: true` is set in [config.json](config.json), each briefing run will:
+
+1. Copy the new HTML into `docs/briefings/`
+2. Mirror any other briefings in `briefings/` that aren't yet published (so the first run backfills your existing archive)
+3. Rebuild `docs/index.html` — a single page that embeds the latest briefing in an iframe and renders every prior briefing as a clickable manila-folder tab across the top
+4. Run `git add docs/`, commit (`Publish <session> <timestamp>`), and `git push`
+
+GitHub Pages then serves the site from the `docs/` folder on `main`.
+
+### One-time setup
+
+1. Make the repo public (or upgrade to GitHub Pro for private-repo Pages).
+2. In the repo on GitHub: **Settings → Pages → Source: Deploy from a branch → Branch: `main` / folder: `/docs` → Save**.
+3. Enable publishing in [config.json](config.json):
+   ```json
+   {
+     "publish_enabled": true,
+     "site_title": "Iran Peace Talks — Market Briefings"
+   }
+   ```
+4. Make sure the user account that runs the briefing has push credentials cached for the repo (HTTPS token, SSH key, or Git Credential Manager). The publish step shells out to `git push` — if it can't authenticate non-interactively, the briefing itself still succeeds but the push will fail with a warning.
+5. Run `python iran_briefing.py --publish` once to backfill all existing briefings, build the index, and push. Your site will be live at `https://<username>.github.io/<repo>/` within a minute or two.
+
+After that, every scheduled or ad-hoc briefing automatically updates the public site at the end of its run. Failures in the publish step are logged but never abort the briefing — `state.json` and the local HTML files are always written first.
+
+### Manual re-publish
+
+```bash
+python iran_briefing.py --publish
+```
+
+Useful if a previous push failed (e.g. transient network error), if you want to seed the site without waiting for the next briefing, or after manually editing files in `docs/`.
 
 ---
 
@@ -273,6 +311,7 @@ To restart after it stops, clear the agreement date by editing `agreement_date` 
 | `python iran_briefing.py --test-email` | Verify email configuration |
 | `python iran_briefing.py --set-agreement 2026-04-18` | Set agreement date for auto-stop |
 | `python iran_briefing.py --reset-state` | Delete `state.json` and restart from baseline hypotheses |
+| `python iran_briefing.py --publish` | Re-publish `docs/` from local `briefings/` and push to GitHub Pages (no new briefing) |
 
 ---
 
@@ -296,6 +335,8 @@ All settings can be set in [config.json](config.json) or via environment variabl
 | `midday_hour` | `MIDDAY_HOUR` | `12` | Midday briefing hour (ET) |
 | `midday_minute` | `MIDDAY_MINUTE` | `30` | Midday briefing minute |
 | `agreement_date` | `AGREEMENT_DATE` | | YYYY-MM-DD, triggers auto-stop 7 days later |
+| `publish_enabled` | `PUBLISH_ENABLED` | `false` | After each briefing, copy HTML into `docs/`, rebuild the index, commit, and push to GitHub Pages |
+| `site_title` | `SITE_TITLE` | `Iran Peace Talks — Market Briefings` | Title shown at the top of the published index page |
 
 ---
 
@@ -304,6 +345,7 @@ All settings can be set in [config.json](config.json) or via environment variabl
 - `briefings/briefing_YYYYMMDD_HHMM_<session>.html` — styled HTML briefing for reading
 - `briefings/briefing_YYYYMMDD_HHMM_<session>.txt` — full raw output including the `<state_update>` JSON block
 - `state.json` — persistent hypothesis state carried between runs (safe to delete via `--reset-state`)
+- `docs/index.html` + `docs/briefings/*.html` — only when `publish_enabled: true`; the public site served by GitHub Pages
 
 ---
 
