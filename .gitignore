@@ -2,3 +2,4 @@
 state.json
 __pycache__/
 *.code-workspace
+/.claude/
