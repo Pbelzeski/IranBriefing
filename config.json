@@ -18,5 +18,9 @@
   "agreement_date": "",
 
   "publish_enabled": true,
-  "site_title": "Iran Peace Talks — Market Briefings"
+  "site_title": "Iran Peace Talks — Market Briefings",
+
+  "verify_enabled": true,
+  "verify_model": "sonnet",
+  "verify_effort": "medium"
 }

@@ -37,6 +37,8 @@ This project was built and tested on **Windows 11** using the **Claude Code CLI*
 | Built-in scheduler (`--schedule`) | ✅ Tested on Windows |
 | Windows Task Scheduler (recommended production path) | ✅ Tested |
 | GitHub Pages auto-publish (`publish_enabled`, `--publish`) | ✅ Tested on Windows |
+| Correction banners (manual `--add-correction`, forward propagation to next run) | ✅ Tested on Windows |
+| Second-pass verifier (`verify_enabled`, `<claims>` block, auto-filed corrections) | ⚠ Implemented, not yet tested |
 | Email delivery (`email_enabled`, SMTP, `--test-email`) | ⚠️ **Untested.** SMTP code path has never been exercised. Gmail app password setup and the provider table are best-effort guidance — expect to debug. |
 | macOS `nohup` background run | ⚠️ **Untested.** Shell syntax should be correct but has not been run on a Mac. |
 | macOS Launch Agent (`launchd` plist) | ⚠️ **Untested.** The plist has not been loaded on a real machine. Verify paths and the `launchctl load` flow yourself before relying on it. |
@@ -169,6 +171,21 @@ python iran_briefing.py --publish
 This appends an entry to `corrections.json` (kept in the repo root, alongside `state.json`). On the next publish, the publisher injects a yellow correction banner at the top of that briefing's HTML and adds a `⚠ N` marker to its tab in the index. The original generated HTML stays untouched in `briefings/` — only the published copy in `docs/briefings/` carries the banner. Multiple corrections on the same briefing are appended in order.
 
 Corrections also propagate **forward into the next briefing's analysis**: when the next briefing runs, every undelivered correction is injected into the analyst's prompt, with instructions to re-evaluate any inherited probabilities or conclusions that depended on the wrong facts. After the analyst run completes successfully, those corrections are marked `delivered_to_briefing: <new_filename>` in `corrections.json` so they aren't re-delivered. The public banner stays in place forever as an audit trail.
+
+### Automated second-pass verifier (optional)
+
+> ⚠️ **Untested.** The verifier path has been implemented but not yet exercised end-to-end on a real briefing run. Expect to debug the first time it fires.
+
+With `verify_enabled: true` in [config.json](config.json), every briefing emits a `<claims>` block listing 6–12 verifiable factual claims (cited figures, named attributions, elapsed-time calculations, anything the analysis hinges on). After the briefing is written and state is saved, a second `claude -p` call — by default on a smaller/cheaper model — re-checks each claim against its source URL (`kind: "cited"`) or by arithmetic + cross-reference (`kind: "derived"`), and returns a JSON verdict per claim.
+
+Any claim the verifier flags as **contradicted** is auto-filed into `corrections.json` with `source: "auto_verifier"` and a short `summary`. The resulting correction behaves exactly like a manual one:
+
+- A yellow banner is injected into the published HTML on the same run (publish happens after verification, so the first public version of the briefing already carries the banner).
+- The banner gets a `title=` hover tooltip reading "The following claims were flagged by an automated verification protocol: X; Y; Z" built from the verifier's summaries.
+- Each entry in the banner gets an `auto-verifier` badge so readers can distinguish machine-flagged from human-filed corrections.
+- On the next briefing run, the correction is injected into the analyst's prompt so inherited probabilities can be revised — same propagation path as manual corrections.
+
+**The verifier never regenerates the briefing.** Regeneration would change every unrelated number and re-invalidate unrelated claims, the verifier itself is an LLM with its own error rate, and the cost and complexity aren't justified when a transparent banner serves the same purpose. Verifier failures (timeouts, network errors, unparseable JSON) are best-effort logged and don't abort the run — the briefing still ships.
 
 ---
 
@@ -351,6 +368,9 @@ All settings can be set in [config.json](config.json) or via environment variabl
 | `agreement_date` | `AGREEMENT_DATE` | | YYYY-MM-DD, triggers auto-stop 7 days later |
 | `publish_enabled` | `PUBLISH_ENABLED` | `false` | After each briefing, copy HTML into `docs/`, rebuild the index, commit, and push to GitHub Pages |
 | `site_title` | `SITE_TITLE` | `Iran Peace Talks — Market Briefings` | Title shown at the top of the published index page |
+| `verify_enabled` | `VERIFY_ENABLED` | `false` | Run a second-pass fact-checker after each briefing; auto-files contradictions as corrections |
+| `verify_model` | `VERIFY_MODEL` | `sonnet` | Model passed to the verifier's `claude -p` call |
+| `verify_effort` | `VERIFY_EFFORT` | `medium` | Effort level for the verifier call |
 
 ---
 

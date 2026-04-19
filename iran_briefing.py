@@ -135,6 +135,11 @@ def load_config():
         # GitHub Pages publishing (optional): copy HTML into docs/, rebuild index, commit + push.
         "publish_enabled": os.getenv("PUBLISH_ENABLED", str(file_config.get("publish_enabled", False))).lower() == "true",
         "site_title": os.getenv("SITE_TITLE", file_config.get("site_title", "Iran Peace Talks — Market Briefings")),
+        # Second-pass verifier (optional): after each briefing, re-check cited/derived
+        # claims with web search. Contradictions get auto-filed as corrections.
+        "verify_enabled": os.getenv("VERIFY_ENABLED", str(file_config.get("verify_enabled", False))).lower() == "true",
+        "verify_model": os.getenv("VERIFY_MODEL", file_config.get("verify_model", "sonnet")),
+        "verify_effort": os.getenv("VERIFY_EFFORT", file_config.get("verify_effort", "medium")),
     }
 
 
@@ -229,9 +234,10 @@ Historic comprehensive agreement on nuclear, Strait, sanctions, reconstruction.
 ## OUTPUT FORMAT
 
 Structure your briefing exactly as follows. The narrative <briefing> block is
-for the human reader. The <state_update> block at the END is for the automation
-system and is the AUTHORITATIVE data for the tabbed HTML renderer and for the
-state carried into the next briefing — it MUST be valid JSON.
+for the human reader. The <state_update> block is for the automation system and
+is the AUTHORITATIVE data for the tabbed HTML renderer and for the state carried
+into the next briefing — it MUST be valid JSON. The <claims> block at the END
+is for an automated fact-checker and MUST be valid JSON.
 
 <briefing>
 <header>
@@ -373,7 +379,58 @@ for the sake of caution. This briefing exists to support decision-making.
 
 IMPORTANT: Respect copyright. Paraphrase all source material. Never quote more
 than a few words from any source. Cite sources by name but summarize in your own
-words."""
+words.
+
+## <claims> BLOCK (for automated fact-checker)
+
+After the <state_update> block, emit a <claims> block listing the verifiable
+factual claims your briefing depends on. A second-pass automated verifier will
+web-fetch sources and sanity-check derivations; anything it contradicts will be
+auto-filed as a public correction on this briefing.
+
+Target 6-12 claims. Prioritize:
+- Specific quoted figures and statistics (oil prices, percentages, thresholds).
+- Named attributions ("General X said Y on date Z").
+- Elapsed-time claims ("36 hours since...", "72 hours without...").
+- Arithmetic or dated calculations based on other facts in the briefing.
+- Any claim the analysis hinges on; if wrong, probabilities would shift.
+
+Do NOT list:
+- Your own hypothesis probabilities or analytical conclusions.
+- Generic framing ("oil markets are volatile").
+- Non-falsifiable statements.
+
+Each claim has four fields:
+- "id": "C1", "C2", ... (unique within this briefing).
+- "claim": one self-contained sentence stating the fact as the briefing presents it.
+- "source_url": the specific URL that should support this claim. Empty string
+  only if the claim is purely derived (arithmetic, elapsed-time from other facts).
+- "kind": "cited" if verifiable by fetching source_url, or "derived" if it
+  depends on calculation or on facts asserted elsewhere in the briefing.
+
+<claims>
+[
+  {
+    "id": "C1",
+    "claim": "Brent crude closed at $82.40/bbl on 2026-04-17.",
+    "source_url": "https://www.example.com/markets/brent-close",
+    "kind": "cited"
+  },
+  {
+    "id": "C2",
+    "claim": "It has been ~36 hours since the last Iranian Red Sea threat activation.",
+    "source_url": "",
+    "kind": "derived"
+  }
+]
+</claims>
+
+CRITICAL RULES FOR <claims>:
+- It MUST be valid JSON (a list). No trailing commas, no comments, no markdown fences.
+- IDs must be unique within the briefing.
+- If the briefing truly has nothing verifiable (e.g., pure editorial), emit [].
+- "source_url" for a "cited" claim should be the SAME URL you cite in
+  <recent_headlines> or <state_update>.recent_headlines — don't invent a new one."""
 
 
 USER_PROMPT_TEMPLATE = """Generate the {session_type} briefing for {date_str}.
@@ -520,6 +577,30 @@ def strip_state_update(briefing_text: str) -> str:
     return re.sub(r"<state_update>.*?</state_update>", "", briefing_text, flags=re.DOTALL).strip()
 
 
+def extract_claims(briefing_text: str):
+    """Pull the JSON <claims> block out of Claude's output. Returns a list or None."""
+    match = re.search(r"<claims>(.*?)</claims>", briefing_text, re.DOTALL)
+    if not match:
+        return None
+    json_text = match.group(1).strip()
+    json_text = re.sub(r"^```(?:json)?\s*", "", json_text)
+    json_text = re.sub(r"\s*```$", "", json_text)
+    try:
+        data = json.loads(json_text)
+    except json.JSONDecodeError as e:
+        print(f"  ⚠ Failed to parse <claims> JSON: {e}")
+        return None
+    if not isinstance(data, list):
+        print(f"  ⚠ <claims> block was not a JSON list; got {type(data).__name__}.")
+        return None
+    return data
+
+
+def strip_claims(briefing_text: str) -> str:
+    """Remove the <claims> block so it isn't rendered in the HTML."""
+    return re.sub(r"<claims>.*?</claims>", "", briefing_text, flags=re.DOTALL).strip()
+
+
 def merge_state(old_state: dict, new_update: dict, briefing_file: str) -> dict:
     """Fold a parsed state_update from Claude into the persistent state."""
     et = ZoneInfo("America/New_York")
@@ -653,6 +734,166 @@ def generate_briefing(config: dict, session_type: str, state: dict) -> str:
         )
 
     return _decode_claude_output(result.stdout).strip()
+
+
+VERIFIER_SYSTEM_PROMPT = """You are an automated fact-checker for a published
+geopolitical market briefing. Another Claude just produced the briefing; you
+are a second pass. Your sole job is to verify the factual claims it listed and
+return a strict JSON verdict array.
+
+For each CLAIM:
+- If kind is "cited": fetch source_url with WebFetch and check whether the page
+  actually supports the claim. If the URL fails or the page doesn't cover it,
+  try web search as a fallback before giving up.
+- If kind is "derived": sanity-check the reasoning. For elapsed-time claims
+  ("~36 hours since X"), web-search to find when X actually happened and do the
+  arithmetic. For dollar/percentage math, verify the inputs and compute.
+
+Status rubric (be calibrated, not hair-trigger):
+- "verified": clearly supported by the source or by checkable computation.
+- "contradicted": clearly wrong — source says something materially different,
+  or the arithmetic is off by a meaningful margin. Small rounding (e.g., 36 vs
+  35 hours) is NOT a contradiction; a 2x error (36 vs 18 hours) IS.
+- "unverified": you couldn't determine (URL dead, search returned nothing
+  usable). Do NOT mark "contradicted" just because you can't verify.
+
+Return ONLY a JSON array. No prose, no markdown fences, no commentary. One
+entry per claim in the input:
+
+[
+  {
+    "claim_id": "C1",
+    "status": "verified" | "contradicted" | "unverified",
+    "note": "For contradicted: state the CORRECT fact and where it came from — this text is published as a public correction. For verified/unverified: brief one-liner.",
+    "summary": "Under 80 characters. Used as a hover tooltip on the correction banner. Only meaningful for 'contradicted'; for others a short stub is fine."
+  }
+]"""
+
+
+VERIFIER_USER_TEMPLATE = """Verify the following claims from a briefing
+published at {timestamp}.
+
+CLAIMS (JSON):
+{claims_json}
+
+Return only the JSON verdict array, one entry per claim, matching the schema in
+your system prompt."""
+
+
+def verify_briefing(claims: list, config: dict, timestamp: str):
+    """Second-pass verifier. Returns a list of verdicts, or None on failure.
+
+    Each verdict is {claim_id, status, note, summary}. Best-effort: on any
+    error we log and return None so the briefing still ships.
+    """
+    if not claims:
+        return []
+
+    claims_json = json.dumps(claims, ensure_ascii=False, indent=2)
+    user_prompt = VERIFIER_USER_TEMPLATE.format(
+        timestamp=timestamp,
+        claims_json=claims_json,
+    )
+
+    model = config.get("verify_model", "sonnet")
+    effort = config.get("verify_effort", "medium")
+    print(f"  Running verifier (model={model}, effort={effort}) on {len(claims)} claim(s)...")
+
+    try:
+        result = subprocess.run(
+            [
+                "claude",
+                "-p", user_prompt,
+                "--model", model,
+                "--effort", effort,
+                "--system-prompt", VERIFIER_SYSTEM_PROMPT,
+                "--tools", "WebSearch,WebFetch",
+                "--permission-mode", "bypassPermissions",
+                "--output-format", "text",
+            ],
+            capture_output=True,
+            timeout=1200,
+        )
+    except FileNotFoundError:
+        print("  ⚠ Verifier skipped: 'claude' CLI not on PATH.")
+        return None
+    except subprocess.TimeoutExpired:
+        print("  ⚠ Verifier timed out after 20 minutes — skipping.")
+        return None
+
+    if result.returncode != 0:
+        stderr = result.stderr.decode("utf-8", errors="replace") if result.stderr else ""
+        print(f"  ⚠ Verifier exited {result.returncode}: {stderr[:500]}")
+        return None
+
+    raw = _decode_claude_output(result.stdout).strip()
+    # Tolerate optional markdown fences or stray prose around the JSON array.
+    fence_match = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", raw, flags=re.DOTALL)
+    if fence_match:
+        json_text = fence_match.group(1)
+    else:
+        array_match = re.search(r"\[.*\]", raw, flags=re.DOTALL)
+        if not array_match:
+            print(f"  ⚠ Verifier output had no JSON array. First 300 chars: {raw[:300]!r}")
+            return None
+        json_text = array_match.group(0)
+
+    try:
+        verdicts = json.loads(json_text)
+    except json.JSONDecodeError as e:
+        print(f"  ⚠ Failed to parse verifier JSON: {e}")
+        return None
+
+    if not isinstance(verdicts, list):
+        print(f"  ⚠ Verifier output was not a list; got {type(verdicts).__name__}.")
+        return None
+
+    return verdicts
+
+
+def file_verifier_corrections(
+    verdicts: list,
+    claims: list,
+    briefing_filename: str,
+) -> int:
+    """Append every 'contradicted' verdict to corrections.json for this briefing.
+
+    Returns the number of entries added. Manual corrections (added via
+    --add-correction) are untouched; auto-filed entries carry
+    source="auto_verifier" and a "summary" field used for the hover tooltip.
+    """
+    claim_by_id = {str(c.get("id", "")): c for c in claims}
+
+    to_add = []
+    for v in verdicts or []:
+        if v.get("status") != "contradicted":
+            continue
+        claim = claim_by_id.get(str(v.get("claim_id", "")), {})
+        claim_text = claim.get("claim", "(original claim text unavailable)")
+        source_url = claim.get("source_url", "")
+        note_body = v.get("note", "").strip() or "(verifier returned no explanation)"
+        body = f"Original claim: {claim_text}\nVerifier finding: {note_body}"
+        if source_url:
+            body += f"\nOriginal source cited: {source_url}"
+        to_add.append({
+            "summary": v.get("summary", "").strip()[:160] or "Claim contradicted by verifier.",
+            "note": body,
+        })
+
+    if not to_add:
+        return 0
+
+    data = load_corrections()
+    added_at = datetime.now(ZoneInfo("America/New_York")).isoformat(timespec="seconds")
+    for entry in to_add:
+        data.setdefault(briefing_filename, []).append({
+            "added_at": added_at,
+            "source": "auto_verifier",
+            "summary": entry["summary"],
+            "note": entry["note"],
+        })
+    save_corrections(data)
+    return len(to_add)
 
 
 def _decode_claude_output(raw_bytes: bytes) -> str:
@@ -1449,18 +1690,44 @@ def format_corrections_for_prompt(pending: list) -> str:
 def _render_correction_banner(entries: list) -> str:
     """Render a yellow banner listing all corrections for one briefing.
 
-    The banner is injected into the published copy of the briefing HTML.
-    Each entry: {"added_at": ISO timestamp, "note": "..."}
+    The banner is injected into the published copy of the briefing HTML. If
+    any entry was auto-filed by the verifier (source=="auto_verifier"), the
+    banner gets a `title` hover tooltip summarizing those findings.
+
+    Each entry: {"added_at": ISO, "note": "...", "source"?: str, "summary"?: str}
     """
     items = []
+    auto_summaries = []
     for e in entries:
         added_at = html_module.escape(e.get("added_at", ""))
         note = html_module.escape(e.get("note", "")).replace("\n", "<br>")
-        items.append(f'<li><time datetime="{added_at}">{added_at}</time> — {note}</li>')
+        source = e.get("source", "")
+        badge = ""
+        if source == "auto_verifier":
+            badge = (
+                ' <span style="background:#ffd76b;color:#604700;border-radius:8px;'
+                'padding:0 0.35rem;font-size:0.7rem;font-weight:600;margin-left:0.25rem;">'
+                'auto-verifier</span>'
+            )
+            summary = e.get("summary", "").strip()
+            if summary:
+                auto_summaries.append(summary)
+        items.append(
+            f'<li><time datetime="{added_at}">{added_at}</time>{badge} — {note}</li>'
+        )
     items_html = "\n".join(items)
     plural = "s" if len(entries) != 1 else ""
+
+    title_attr = ""
+    if auto_summaries:
+        tooltip = (
+            "The following claims were flagged by an automated verification "
+            "protocol: " + "; ".join(auto_summaries)
+        )
+        title_attr = f' title="{html_module.escape(tooltip, quote=True)}"'
+
     return (
-        '<aside style="background:#fff3cd;border:1px solid #ffd76b;border-radius:6px;'
+        f'<aside{title_attr} style="background:#fff3cd;border:1px solid #ffd76b;border-radius:6px;'
         'padding:0.75rem 1rem;margin:0 0 1rem 0;font-family:-apple-system,BlinkMacSystemFont,'
         '\'Segoe UI\',Roboto,sans-serif;color:#604700;font-size:0.92rem;line-height:1.45">'
         f'<strong>Correction{plural} ({len(entries)})</strong>'
@@ -1619,15 +1886,17 @@ def run_briefing(config: dict, session_type: str = "pre-market"):
     filename = f"briefing_{file_timestamp}_{session_type.replace('-', '_')}.html"
     filepath = output_dir / filename
 
-    # Parse <state_update> first so the HTML renderer can use structured data.
+    # Parse <state_update> and <claims> first so we can strip both blocks before
+    # formatting the HTML (they're machine-metadata, not human content).
     state_update = extract_state_update(raw)
+    claims = extract_claims(raw)
     ceasefire_expiry = ""
     if state_update and "ceasefire_expiry" in state_update:
         ceasefire_expiry = state_update.get("ceasefire_expiry") or ""
     else:
         ceasefire_expiry = state.get("ceasefire_expiry", "")
 
-    display_text = strip_state_update(raw)
+    display_text = strip_claims(strip_state_update(raw))
     html = format_html_briefing(
         display_text,
         session_type,
@@ -1660,6 +1929,28 @@ def run_briefing(config: dict, session_type: str = "pre-market"):
         n_marked = mark_corrections_delivered(filepath.name)
         if n_marked:
             print(f"  ✓ Marked {n_marked} correction(s) as delivered to {filepath.name}.")
+
+    # Second-pass verifier (opt-in, best-effort, never regenerates the briefing).
+    # Runs BEFORE email + publish so any auto-filed corrections appear in both.
+    if config.get("verify_enabled"):
+        if claims is None:
+            print("  ⚠ Verifier enabled but no <claims> block was parsed — skipping.")
+        else:
+            try:
+                verdicts = verify_briefing(claims, config, timestamp)
+            except Exception as e:
+                print(f"  ⚠ Verifier raised unexpected exception: {e}. Briefing still ships.")
+                verdicts = None
+            if verdicts is not None:
+                n_contra = sum(1 for v in verdicts if v.get("status") == "contradicted")
+                n_unver = sum(1 for v in verdicts if v.get("status") == "unverified")
+                print(
+                    f"  ✓ Verifier done: {len(verdicts)} verdict(s) "
+                    f"({n_contra} contradicted, {n_unver} unverified)."
+                )
+                n_filed = file_verifier_corrections(verdicts, claims, filepath.name)
+                if n_filed:
+                    print(f"  ✓ Auto-filed {n_filed} correction(s) on {filepath.name}.")
 
     # Email
     subject = f"Iran Briefing: {session_type.replace('-', ' ').title()} — {now.strftime('%b %d')}"
