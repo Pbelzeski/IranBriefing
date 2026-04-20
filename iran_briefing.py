@@ -231,6 +231,20 @@ Historic comprehensive agreement on nuclear, Strait, sanctions, reconstruction.
 6. PREDICT specific NYSE sector impacts based on current trajectory.
 7. IDENTIFY the single most important thing to watch before the next briefing.
 
+## REFERENCES TO PRIOR BRIEFINGS
+
+- DO NOT refer to prior briefings by number (no "Briefing #6", "Briefing #7",
+  etc.). The automation counts briefings internally, but readers of the public
+  page never see those numbers — so any such reference is invisible-context
+  leakage. Refer to prior briefings by date, time-of-day, or session label
+  instead (e.g. "yesterday's midday briefing", "Saturday evening's on-demand
+  update", "the previous briefing").
+- If you reference elapsed time since the previous briefing in prose, use
+  the pre-computed value in the PREVIOUS BRIEFING STATE block verbatim.
+  That line says something like "... — 7 hours 46 minutes ago." Do NOT
+  estimate, round, or re-compute this from timestamps — you have been wrong
+  about this before.
+
 ## OUTPUT FORMAT
 
 Structure your briefing exactly as follows. The narrative <briefing> block is
@@ -492,7 +506,54 @@ def save_state(state: dict) -> None:
         json.dump(state, f, indent=2, ensure_ascii=False)
 
 
-def format_state_for_prompt(state: dict) -> str:
+def _format_elapsed(delta_seconds: float) -> str:
+    """Return a human-readable elapsed time like '7 hours 46 minutes' or '2 days 3 hours'."""
+    if delta_seconds < 0:
+        return "(clock skew: previous briefing appears to be in the future)"
+    total_minutes = int(delta_seconds // 60)
+    if total_minutes < 60:
+        return f"{total_minutes} minute{'s' if total_minutes != 1 else ''}"
+    total_hours = total_minutes // 60
+    rem_minutes = total_minutes % 60
+    if total_hours < 24:
+        parts = [f"{total_hours} hour{'s' if total_hours != 1 else ''}"]
+        if rem_minutes:
+            parts.append(f"{rem_minutes} minute{'s' if rem_minutes != 1 else ''}")
+        return " ".join(parts)
+    days = total_hours // 24
+    rem_hours = total_hours % 24
+    parts = [f"{days} day{'s' if days != 1 else ''}"]
+    if rem_hours:
+        parts.append(f"{rem_hours} hour{'s' if rem_hours != 1 else ''}")
+    return " ".join(parts)
+
+
+def _previous_briefing_line(state: dict, now: datetime) -> str:
+    """Build the 'last briefing was on <date> at <time> — X ago' line.
+
+    Parses the timestamp out of state['last_briefing_file'] (which is built in
+    ET by construction) so elapsed time is computed from ground-truth file
+    metadata, not from a re-parsed %Z string that may not round-trip.
+    """
+    last_file = Path(state.get("last_briefing_file") or "").name
+    parsed = _parse_briefing_filename(last_file)
+    if parsed is None:
+        fallback = state.get("last_updated", "unknown time")
+        return f"The previous briefing was at {fallback}."
+    prev_dt, session_label = parsed
+    et = ZoneInfo("America/New_York")
+    prev_dt = prev_dt.replace(tzinfo=et)
+    elapsed = _format_elapsed((now - prev_dt).total_seconds())
+    when = prev_dt.strftime("%A %B %-d at %-I:%M %p ET") if os.name != "nt" else \
+        prev_dt.strftime("%A %B %#d at %#I:%M %p ET")
+    return (
+        f"The previous briefing ({session_label}) was on {when} — "
+        f"{elapsed} ago. Quote THIS value verbatim if you reference "
+        f"elapsed time in prose; do not compute your own."
+    )
+
+
+def format_state_for_prompt(state: dict, now: datetime | None = None) -> str:
     """Render the persistent state as a text block for injection into the user prompt."""
     if state["briefings_count"] == 0:
         return (
@@ -502,10 +563,13 @@ def format_state_for_prompt(state: dict) -> str:
             "then adjust them based on current news."
         )
 
+    if now is None:
+        now = datetime.now(ZoneInfo("America/New_York"))
+
     lines = [
         "## PREVIOUS BRIEFING STATE",
         "",
-        f"(Briefing #{state['briefings_count']} was at {state.get('last_updated', 'unknown time')}.)",
+        _previous_briefing_line(state, now),
         "",
         "### Situation snapshot (from last briefing):",
         state.get("situation_snapshot", "(none recorded)"),
@@ -695,7 +759,7 @@ def generate_briefing(config: dict, session_type: str, state: dict) -> str:
         time_str=time_str,
         market_status=market_status,
         ceasefire_line=ceasefire_line,
-        previous_state_block=format_state_for_prompt(state),
+        previous_state_block=format_state_for_prompt(state, now),
         corrections_block=format_corrections_for_prompt(pending),
     )
 
