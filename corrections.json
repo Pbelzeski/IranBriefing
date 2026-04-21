@@ -5,5 +5,38 @@
       "note": "The brief stated Iran's Red Sea threat had gone '36+ hours without activation.' Per PressTV (publication 11:26 AM Tehran time on Apr 15) and Al Jazeera, Major General Ali Abdollahi's statement was made Wednesday Apr 15 — roughly 3 AM ET or earlier. At the time of this brief (11:42 PM ET Apr 15), the actual elapsed time was ~20 hours, not 36+. The analytical point (threat losing credibility from non-activation) stands; the specific number was wrong, likely number-bleed from the unrelated '36 hours to halt Iranian sea trade' blockade stat cited in the same brief.",
       "delivered_to_briefing": "briefing_20260416_1230_midday.html"
     }
+  ],
+  "briefing_20260420_0204_on_demand.html": [
+    {
+      "added_at": "2026-04-20T02:17:02-04:00",
+      "source": "auto_verifier",
+      "summary": "S&P futures source shows 7,115.75 / -45.75 / -0.64%, not 7,115.25 / -46.25 / -0.65%.",
+      "note": "Original claim: S&P 500 futures were at 7,115.25, down 46.25 points (-0.65%) on Sunday evening April 20, 2026.\nVerifier finding: The Yahoo Finance source shows S&P 500 futures (ES=F) at 7,115.75, down 45.75 points (-0.64%), not 7,115.25 / -46.25 / -0.65% as stated. The Gold (GC=F) figure of 4,813.30 / -66.30 / -1.36% is correct. The S&P values appear to reflect a different timestamp of the same live feed.\nOriginal source cited: https://finance.yahoo.com/markets/stocks/live/stock-market-today-p-500-230354361.html",
+      "delivered_to_briefing": "briefing_20260420_1230_midday.html"
+    },
+    {
+      "added_at": "2026-04-20T02:17:02-04:00",
+      "source": "auto_verifier",
+      "summary": "Brent crude source shows $95.14 / +5.27%, not $95.42 / +5.58%.",
+      "note": "Original claim: Brent crude rose to approximately $95.42 per barrel on April 20, 2026, up roughly 5.58% from the previous trading session.\nVerifier finding: TradingEconomics shows Brent crude at $95.14/bbl, up 5.27%, not $95.42/+5.58% as claimed. The directional move is correct but the specific price and percentage differ meaningfully (28-cent price gap; 0.31 pp change gap), likely reflecting a different snapshot of a live feed.\nOriginal source cited: https://tradingeconomics.com/commodity/brent-crude-oil",
+      "delivered_to_briefing": "briefing_20260420_1230_midday.html"
+    }
+  ],
+  "briefing_20260420_1230_midday.html": [
+    {
+      "added_at": "2026-04-20T12:44:58-04:00",
+      "source": "auto_verifier",
+      "summary": "Ceasefire expires 8 PM ET Tuesday Apr 21, not Wednesday Apr 22 as claimed.",
+      "note": "Original claim: The ceasefire is set to expire at approximately 8 PM ET on Wednesday, April 22, 2026, based on its two-week duration starting April 8.\nVerifier finding: The cited Baltimore Sun source and multiple corroborating outlets (European Business Magazine, ABC News wire) state the ceasefire expires at 8 PM ET on Tuesday, April 21, 2026 (= 0000 GMT Wednesday, April 22). The claim incorrectly places 8 PM ET on Wednesday, April 22 — that would actually be 0000 GMT Thursday, April 23, a full 24 hours late. The Wednesday label applies to the GMT date, not the US Eastern time date.\nOriginal source cited: https://www.baltimoresun.com/2026/04/20/us-iran-war-ceasefire-expiration/",
+      "delivered_to_briefing": "briefing_20260421_1230_midday.html"
+    }
+  ],
+  "briefing_20260421_1230_midday.html": [
+    {
+      "added_at": "2026-04-21T12:44:10-04:00",
+      "source": "auto_verifier",
+      "summary": "'Peanuts' referred to economic vs. nuclear risk, not $95 vs. $200 oil.",
+      "note": "Original claim: Trump dismissed current oil prices of approximately $95 per barrel as 'peanuts' compared to a hypothetical $200.\nVerifier finding: Trump's 'peanuts' remark was not a dismissal of ~$95 oil vs a hypothetical $200 barrel. Per the CNBC search transcript summary, Trump said the economic impact of military action driving up oil prices would be 'peanuts compared to what would happen' if Iran developed nuclear weapons — a comparison to nuclear proliferation risk, not to a $200 oil price. Separately, Trump said he'd be 'frankly surprised' oil is at ~$90 rather than $200, but he did not call that price level 'peanuts.' The claim conflates two distinct statements and misstates the referent of the 'peanuts' quote.\nOriginal source cited: https://www.cnbc.com/2026/04/21/trump-iran-war-ceasefire-peace-talks.html"
+    }
   ]
 }

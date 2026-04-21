@@ -741,8 +741,11 @@ def generate_briefing(config: dict, session_type: str, state: dict) -> str:
             "if a dated ceasefire exists."
         )
 
+    is_weekend = now.weekday() >= 5
     hour = now.hour
-    if session_type == "pre-market":
+    if is_weekend:
+        market_status = "is closed for the weekend (futures reopen Sunday 6:00 PM ET)"
+    elif session_type == "pre-market":
         market_status = "opens in approximately 30 minutes"
     elif 9 <= hour < 16:
         market_status = "is currently open"
@@ -2040,6 +2043,7 @@ def run_scheduler(config: dict):
     print("\n" + "=" * 60)
     print("  IRAN BRIEFING SCHEDULER")
     print("=" * 60)
+    print(f"  Pre-market briefing: {config['premarket_hour']:02d}:{config['premarket_minute']:02d} ET")
     print(f"  Midday briefing:     {config['midday_hour']:02d}:{config['midday_minute']:02d} ET")
     print(f"  Model / effort:      {config['model']} / {config['effort']}")
     print(f"  Output directory:    {config['output_dir']}")
@@ -2054,27 +2058,32 @@ def run_scheduler(config: dict):
     while True:
         now = datetime.now(et)
 
-        if now.weekday() >= 5:
-            tomorrow = now.replace(hour=0, minute=0, second=0) + timedelta(days=1)
-            sleep_secs = (tomorrow - now).total_seconds()
-            print(f"  Weekend — sleeping until {tomorrow.strftime('%A %I:%M %p ET')}")
-            time.sleep(min(sleep_secs, 3600))
-            continue
-
+        premarket_time = now.replace(
+            hour=config["premarket_hour"],
+            minute=config["premarket_minute"],
+            second=0, microsecond=0,
+        )
         midday_time = now.replace(
             hour=config["midday_hour"],
             minute=config["midday_minute"],
             second=0, microsecond=0,
         )
 
-        if now >= midday_time:
-            tomorrow_midday = midday_time + timedelta(days=1)
-            sleep_secs = (tomorrow_midday - now).total_seconds()
-            print(f"  Midday briefing done for today. Next: {tomorrow_midday.strftime('%A %I:%M %p ET')}")
+        if now < premarket_time:
+            session_type, target_time = "pre-market", premarket_time
+        elif now < midday_time:
+            session_type, target_time = "midday", midday_time
+        else:
+            # Both today's briefings are done — jump to tomorrow's pre-market.
+            next_premarket = premarket_time + timedelta(days=1)
+            sleep_secs = (next_premarket - now).total_seconds()
+            print(
+                f"  Both briefings done for today. "
+                f"Next: pre-market at {next_premarket.strftime('%A %I:%M %p ET')}"
+            )
             time.sleep(min(sleep_secs, 3600))
             continue
 
-        session_type, target_time = "midday", midday_time
         sleep_secs = (target_time - now).total_seconds()
 
         if sleep_secs > 60:

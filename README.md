@@ -98,10 +98,11 @@ At max effort with web search, a single briefing can take several minutes.
 python iran_briefing.py --schedule
 ```
 
-This runs continuously, generating one briefing per trading day:
-- **12:30 PM ET** — Midday briefing (halfway through trading)
+This runs continuously, generating two briefings per day (every day, including weekends):
+- **9:00 AM ET** — Pre-market briefing (~30 min before NYSE open on weekdays; on weekends, the prompt notes that the market is closed for the weekend)
+- **12:30 PM ET** — Midday briefing
 
-Weekends are skipped automatically. Press `Ctrl+C` to stop. To run an extra ad-hoc briefing between scheduled runs (for example after breaking news), invoke `python iran_briefing.py` manually in another terminal — it shares the same persistent state and will be labeled "on-demand" in the header and filename.
+Press `Ctrl+C` to stop. To run an extra ad-hoc briefing between scheduled runs (for example after breaking news), invoke `python iran_briefing.py` manually in another terminal — it shares the same persistent state and will be labeled "on-demand" in the header and filename.
 
 ---
 
