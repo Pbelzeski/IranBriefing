@@ -135,6 +135,16 @@ def load_config():
         # GitHub Pages publishing (optional): copy HTML into docs/, rebuild index, commit + push.
         "publish_enabled": os.getenv("PUBLISH_ENABLED", str(file_config.get("publish_enabled", False))).lower() == "true",
         "site_title": os.getenv("SITE_TITLE", file_config.get("site_title", "Iran Peace Talks — Market Briefings")),
+        # Canonical public URL (no trailing slash). Used for Open Graph tags,
+        # canonical link rels, sitemap.xml, and RSS feed URLs. Empty string
+        # disables SEO metadata emission.
+        "site_url": os.getenv("SITE_URL", file_config.get("site_url", "")),
+        "site_description": os.getenv("SITE_DESCRIPTION", file_config.get(
+            "site_description",
+            "Automated daily market briefings on the 2026 Iran peace talks: "
+            "hypothesis probabilities, NYSE sector implications, and second-pass "
+            "automated fact-checking."
+        )),
         # Second-pass verifier (optional): after each briefing, re-check cited/derived
         # claims with web search. Contradictions get auto-filed as corrections.
         "verify_enabled": os.getenv("VERIFY_ENABLED", str(file_config.get("verify_enabled", False))).lower() == "true",
@@ -574,9 +584,14 @@ def format_state_for_prompt(state: dict, now: datetime | None = None) -> str:
         "### Situation snapshot (from last briefing):",
         state.get("situation_snapshot", "(none recorded)"),
         "",
-        "### Active hypotheses at end of last briefing:",
+        "### Active hypotheses at end of last briefing (most likely first):",
     ]
-    for h in state.get("hypotheses", []):
+    def _prev_prob_key(h):
+        try:
+            return -float(h.get("probability", 0) or 0)
+        except (TypeError, ValueError):
+            return 0
+    for h in sorted(state.get("hypotheses", []), key=_prev_prob_key):
         trend_arrow = {"up": "↑", "down": "↓", "flat": "→"}.get(h.get("trend", "flat"), "→")
         lines.append(
             f"- **{h.get('id', '?')}** ({h.get('probability', '?')}%, {trend_arrow}) "
@@ -993,6 +1008,28 @@ def _extract_section(raw_text: str, tag: str) -> str:
     return match.group(1).strip() if match else ""
 
 
+def _plain_text(s: str, limit: int = 160) -> str:
+    """Strip tags/markdown/whitespace and truncate to ~limit chars at a word boundary."""
+    text = re.sub(r"<[^>]+>", " ", s or "")
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"\1", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0]
+    return cut + "…"
+
+
+def _seo_description(state_update, raw_text: str, fallback: str) -> str:
+    snap = ""
+    if state_update:
+        snap = (state_update.get("situation_snapshot") or "").strip()
+    if not snap:
+        snap = _extract_section(raw_text, "situation_update")
+    snap = _plain_text(snap, 160)
+    return snap or fallback
+
+
 def _narrative_to_html(text: str) -> str:
     """Minimal markdown-ish conversion for narrative sections."""
     if not text:
@@ -1061,6 +1098,22 @@ def _render_outcomes(state_update: dict | None, raw_text: str) -> str:
             parts.append("<p><em>No hypothesis data in this briefing.</em></p>")
         return "\n".join(parts)
 
+    # Sort most-likely first so readers see the dominant scenario up top. Sort
+    # defensively: non-numeric probabilities sink to the bottom.
+    def _prob_sort_key(h):
+        try:
+            return -float(h.get("probability", 0) or 0)
+        except (TypeError, ValueError):
+            return 0
+    hypotheses = sorted(hypotheses, key=_prob_sort_key)
+
+    parts.append(
+        '<p class="outcome-legend"><strong>H = Hypothesis</strong> '
+        '(a candidate scenario for how the peace talks resolve). '
+        'Ordered by current probability, most likely first. '
+        'Probabilities shift each briefing as new information arrives.</p>'
+    )
+
     direction_class = {"bullish": "bullish", "bearish": "bearish", "neutral": "neutral"}
     for h in hypotheses:
         h_id = html_module.escape((h.get("id") or "?").strip())
@@ -1126,6 +1179,8 @@ def format_html_briefing(
     timestamp: str,
     state_update: dict | None,
     ceasefire_expiry: str,
+    config: dict | None = None,
+    filename: str = "",
 ) -> str:
     """Render the briefing as a tabbed HTML page driven primarily by state_update JSON."""
 
@@ -1269,6 +1324,15 @@ def format_html_briefing(
     .motive-rationale { font-size: 13px; color: #444; line-height: 1.55; }
 
     .outcome-narrative { margin-bottom: 18px; font-size: 14px; }
+    .outcome-legend {
+        font-size: 13px;
+        color: #555;
+        background: #f5f2ec;
+        border-left: 3px solid #8a5a3a;
+        padding: 10px 14px;
+        margin-bottom: 16px;
+        line-height: 1.5;
+    }
     details.hypothesis {
         background: #fff;
         border: 1px solid #ddd;
@@ -1371,12 +1435,68 @@ def format_html_briefing(
     }
     """
 
+    # SEO block — emitted only when site_url is configured. Gives AI crawlers
+    # (and social cards, and search) a clean description, canonical URL, and
+    # structured-data JSON-LD for the briefing as an AnalysisNewsArticle.
+    seo_head = ""
+    if config and config.get("site_url"):
+        base_url = config["site_url"].rstrip("/")
+        page_url = f"{base_url}/briefings/{filename}" if filename else base_url
+        site_name = config.get("site_title", "Iran Peace Talks — Market Briefings")
+        description = _seo_description(
+            state_update, raw_text, config.get("site_description", "")
+        )
+        og_title = f"{session_label} — {timestamp} ET"
+        try:
+            pub_dt = datetime.strptime(timestamp, "%B %d, %Y %I:%M %p").replace(tzinfo=et)
+            published_iso = pub_dt.isoformat()
+        except ValueError:
+            published_iso = now.isoformat()
+        modified_iso = now.isoformat()
+
+        jsonld = {
+            "@context": "https://schema.org",
+            "@type": "AnalysisNewsArticle",
+            "headline": og_title,
+            "description": description,
+            "datePublished": published_iso,
+            "dateModified": modified_iso,
+            "url": page_url,
+            "isPartOf": {"@type": "WebSite", "name": site_name, "url": base_url},
+            "publisher": {"@type": "Organization", "name": site_name, "url": base_url},
+            "author": {"@type": "Organization", "name": site_name, "url": base_url},
+            "about": [
+                {"@type": "Thing", "name": "Iran nuclear negotiations"},
+                {"@type": "Thing", "name": "Strait of Hormuz"},
+                {"@type": "Thing", "name": "NYSE sector impact"},
+            ],
+        }
+        esc = html_module.escape
+        seo_head = (
+            f'<meta name="description" content="{esc(description)}">\n'
+            f'<link rel="canonical" href="{esc(page_url)}">\n'
+            f'<link rel="alternate" type="application/rss+xml" title="{esc(site_name)}" '
+            f'href="{esc(base_url)}/feed.xml">\n'
+            f'<meta property="og:type" content="article">\n'
+            f'<meta property="og:title" content="{esc(og_title)}">\n'
+            f'<meta property="og:description" content="{esc(description)}">\n'
+            f'<meta property="og:url" content="{esc(page_url)}">\n'
+            f'<meta property="og:site_name" content="{esc(site_name)}">\n'
+            f'<meta property="article:published_time" content="{esc(published_iso)}">\n'
+            f'<meta property="article:modified_time" content="{esc(modified_iso)}">\n'
+            f'<meta name="twitter:card" content="summary">\n'
+            f'<meta name="twitter:title" content="{esc(og_title)}">\n'
+            f'<meta name="twitter:description" content="{esc(description)}">\n'
+            f'<script type="application/ld+json">{json.dumps(jsonld, ensure_ascii=False)}</script>'
+        )
+
     html_doc = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Iran Peace Talks — {session_label} — {timestamp}</title>
+{seo_head}
 <style>{css}</style>
 </head>
 <body>
@@ -1493,7 +1613,7 @@ def _parse_briefing_filename(name: str):
     return dt, label
 
 
-def _build_index_html(site_title: str, briefings: list) -> str:
+def _build_index_html(site_title: str, briefings: list, config: dict | None = None) -> str:
     """Render docs/index.html given a list of briefings sorted newest-first.
 
     Each briefing is a dict: {filename, datetime, label}. The newest is loaded
@@ -1532,12 +1652,76 @@ def _build_index_html(site_title: str, briefings: list) -> str:
         )
 
     updated = datetime.now(ZoneInfo("America/New_York")).strftime("%B %d, %Y %I:%M %p ET")
+
+    seo_head = ""
+    if config and config.get("site_url"):
+        base_url = config["site_url"].rstrip("/")
+        description = config.get("site_description", "") or (
+            "Automated daily market briefings on the 2026 Iran peace talks."
+        )
+        esc = html_module.escape
+        jsonld_site = {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": site_title,
+            "description": description,
+            "url": f"{base_url}/",
+        }
+        jsonld_list = None
+        if briefings:
+            latest = briefings[0]
+            latest_url = f"{base_url}/briefings/{latest['filename']}"
+            jsonld_list = {
+                "@context": "https://schema.org",
+                "@type": "ItemList",
+                "name": f"{site_title} — archive",
+                "url": f"{base_url}/",
+                "numberOfItems": len(briefings),
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": i + 1,
+                        "url": f"{base_url}/briefings/{b['filename']}",
+                        "name": f"{b['label']} — {b['datetime'].strftime('%B %d, %Y %I:%M %p')} ET",
+                    }
+                    for i, b in enumerate(briefings[:20])
+                ],
+            }
+            # Ensure the latest briefing URL is explicit, for crawlers that
+            # want the most-recent article without parsing the list.
+            jsonld_site["mainEntity"] = {
+                "@type": "AnalysisNewsArticle",
+                "url": latest_url,
+                "name": f"{latest['label']} — {latest['datetime'].strftime('%B %d, %Y %I:%M %p')} ET",
+            }
+        seo_bits = [
+            f'<meta name="description" content="{esc(description)}">',
+            f'<link rel="canonical" href="{esc(base_url)}/">',
+            f'<link rel="alternate" type="application/rss+xml" title="{esc(site_title)}" '
+            f'href="{esc(base_url)}/feed.xml">',
+            '<meta property="og:type" content="website">',
+            f'<meta property="og:title" content="{esc(site_title)}">',
+            f'<meta property="og:description" content="{esc(description)}">',
+            f'<meta property="og:url" content="{esc(base_url)}/">',
+            f'<meta property="og:site_name" content="{esc(site_title)}">',
+            '<meta name="twitter:card" content="summary">',
+            f'<meta name="twitter:title" content="{esc(site_title)}">',
+            f'<meta name="twitter:description" content="{esc(description)}">',
+            f'<script type="application/ld+json">{json.dumps(jsonld_site, ensure_ascii=False)}</script>',
+        ]
+        if jsonld_list is not None:
+            seo_bits.append(
+                f'<script type="application/ld+json">{json.dumps(jsonld_list, ensure_ascii=False)}</script>'
+            )
+        seo_head = "\n".join(seo_bits)
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{html_module.escape(site_title)}</title>
+{seo_head}
 <style>
   :root {{
     --folder-bg: #f5e9c8;
@@ -1815,6 +1999,65 @@ def _inject_correction_banner(html: str, banner: str) -> str:
     return html[:insert_at] + "\n" + banner + "\n" + html[insert_at:]
 
 
+def _write_sitemap(docs_dir: Path, site_url: str, briefings: list) -> None:
+    """Emit docs/sitemap.xml listing the index + every briefing URL."""
+    esc = html_module.escape
+    entries = [
+        f"<url><loc>{esc(site_url)}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>"
+    ]
+    for b in briefings:
+        url = f"{site_url}/briefings/{b['filename']}"
+        lastmod = b["datetime"].strftime("%Y-%m-%d")
+        entries.append(
+            f"<url><loc>{esc(url)}</loc><lastmod>{lastmod}</lastmod></url>"
+        )
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(entries)
+        + "\n</urlset>\n"
+    )
+    (docs_dir / "sitemap.xml").write_text(xml, encoding="utf-8")
+
+
+def _write_rss(docs_dir: Path, config: dict, briefings: list) -> None:
+    """Emit docs/feed.xml as RSS 2.0 with the newest 20 briefings."""
+    site_url = config["site_url"].rstrip("/")
+    title = config.get("site_title", "Iran Peace Talks — Market Briefings")
+    desc = config.get("site_description", "")
+    et = ZoneInfo("America/New_York")
+    esc = html_module.escape
+    items = []
+    for b in briefings[:20]:
+        url = f"{site_url}/briefings/{b['filename']}"
+        dt = b["datetime"].replace(tzinfo=et)
+        pub = dt.strftime("%a, %d %b %Y %H:%M:%S %z")
+        item_title = f"{b['label']} — {b['datetime'].strftime('%B %d, %Y %I:%M %p')} ET"
+        items.append(
+            "<item>"
+            f"<title>{esc(item_title)}</title>"
+            f"<link>{esc(url)}</link>"
+            f"<guid isPermaLink=\"true\">{esc(url)}</guid>"
+            f"<pubDate>{pub}</pubDate>"
+            f"<description>{esc(desc)}</description>"
+            "</item>"
+        )
+    now_pub = datetime.now(et).strftime("%a, %d %b %Y %H:%M:%S %z")
+    rss = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>'
+        f'<title>{esc(title)}</title>'
+        f'<link>{esc(site_url)}/</link>'
+        f'<atom:link href="{esc(site_url)}/feed.xml" rel="self" type="application/rss+xml" />'
+        f'<description>{esc(desc)}</description>'
+        '<language>en-us</language>'
+        f'<lastBuildDate>{now_pub}</lastBuildDate>'
+        + "".join(items)
+        + '</channel></rss>\n'
+    )
+    (docs_dir / "feed.xml").write_text(rss, encoding="utf-8")
+
+
 def publish_to_docs(config: dict, latest_html_path=None) -> bool:
     """Mirror briefings into docs/, rebuild index.html, commit + push.
 
@@ -1867,10 +2110,16 @@ def publish_to_docs(config: dict, latest_html_path=None) -> bool:
         })
     briefings.sort(key=lambda b: b["datetime"], reverse=True)
 
-    index_html = _build_index_html(config.get("site_title", "Iran Peace Talks — Market Briefings"), briefings)
+    site_title = config.get("site_title", "Iran Peace Talks — Market Briefings")
+    index_html = _build_index_html(site_title, briefings, config)
     (docs_dir / "index.html").write_text(index_html, encoding="utf-8")
     # .nojekyll lets GitHub Pages serve files starting with underscores untouched.
     (docs_dir / ".nojekyll").write_text("", encoding="utf-8")
+
+    # sitemap.xml + feed.xml — only meaningful once site_url is configured.
+    if config.get("site_url") and briefings:
+        _write_sitemap(docs_dir, config["site_url"].rstrip("/"), briefings)
+        _write_rss(docs_dir, config, briefings)
 
     print(f"  ✓ Published {len(briefings)} briefing(s) to docs/")
 
@@ -1970,6 +2219,8 @@ def run_briefing(config: dict, session_type: str = "pre-market"):
         timestamp,
         state_update,
         ceasefire_expiry,
+        config=config,
+        filename=filename,
     )
 
     with open(filepath, "w", encoding="utf-8") as f:

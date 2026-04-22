@@ -19,6 +19,8 @@
 
   "publish_enabled": true,
   "site_title": "Iran Peace Talks — Market Briefings",
+  "site_url": "https://pbelzeski.github.io/IranBriefing",
+  "site_description": "Automated daily market briefings on the 2026 Iran peace talks: hypothesis probabilities, NYSE sector implications, and second-pass automated fact-checking.",
 
   "verify_enabled": true,
   "verify_model": "sonnet",
