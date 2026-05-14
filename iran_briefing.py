@@ -23,6 +23,7 @@ import html as html_module
 import json
 import os
 import re
+import shutil
 import smtplib
 import subprocess
 import sys
@@ -35,6 +36,8 @@ from zoneinfo import ZoneInfo
 
 STATE_FILE = Path(__file__).parent / "state.json"
 STATE_VERSION = 2
+
+CLAUDE_CLI = shutil.which("claude") or "claude"
 
 
 BASELINE_MOTIVES_US = [
@@ -787,7 +790,7 @@ def generate_briefing(config: dict, session_type: str, state: dict) -> str:
     try:
         result = subprocess.run(
             [
-                "claude",
+                CLAUDE_CLI,
                 "-p", user_prompt,
                 "--model", config["model"],
                 "--effort", config["effort"],
@@ -884,7 +887,7 @@ def verify_briefing(claims: list, config: dict, timestamp: str):
     try:
         result = subprocess.run(
             [
-                "claude",
+                CLAUDE_CLI,
                 "-p", user_prompt,
                 "--model", model,
                 "--effort", effort,
