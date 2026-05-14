@@ -37,7 +37,21 @@ from zoneinfo import ZoneInfo
 STATE_FILE = Path(__file__).parent / "state.json"
 STATE_VERSION = 2
 
-CLAUDE_CLI = shutil.which("claude") or "claude"
+def _resolve_claude_cli() -> str:
+    found = shutil.which("claude")
+    if not found:
+        return "claude"
+    # On Windows shutil.which returns the .cmd shim, which routes through cmd.exe
+    # and inherits its ~8KB command-line limit. Prefer the sibling claude.exe so
+    # Python's CreateProcess can pass the full ~32KB system prompt directly.
+    if os.name == "nt" and found.lower().endswith(".cmd"):
+        exe = Path(found).parent / "node_modules" / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
+        if exe.exists():
+            return str(exe)
+    return found
+
+
+CLAUDE_CLI = _resolve_claude_cli()
 
 
 BASELINE_MOTIVES_US = [
